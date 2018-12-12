@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import logging
 
-from ..visualization.visualize import plot_feature_correlations, \
+from brainfeatures.visualization.visualize import plot_feature_correlations, \
     plot_mean_feature_importances_spatial, plot_scaled_mean_importances
 
 

@@ -1,4 +1,4 @@
-from brainfeaturedecode.cleaning.rules import remove_start, remove_end, \
+from brainfeatures.cleaning.rules import remove_start, remove_end, \
     take_part, resample, clip_values
 
 

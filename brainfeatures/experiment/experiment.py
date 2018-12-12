@@ -8,12 +8,12 @@ from functools import partial
 import logging
 import time
 
-from brainfeaturedecode.feature_generation.generate_features import \
+from brainfeatures.feature_generation.generate_features import \
     generate_features_of_one_file, default_feature_generation_params
-from brainfeaturedecode.analysis.analyze import analyze_quality_of_predictions, \
+from brainfeatures.analysis.analyze import analyze_quality_of_predictions, \
     analyze_feature_importances, analyze_feature_correlations, \
     analyze_pca_components
-from brainfeaturedecode.decoding.decode import validate, final_evaluate
+from brainfeatures.decoding.decode import validate, final_evaluate
 
 # TODO: add cropping feature vector?
 # TODO: move agg mode out of feature generators to experiment? -> moves a lot of data around

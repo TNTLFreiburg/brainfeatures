@@ -4,12 +4,12 @@ import numpy as np
 import h5py
 import re
 
-from brainfeaturedecode.data_set.abstract_data_set import DataSet
-from brainfeaturedecode.utils.file_util import natural_key, \
+from brainfeatures.data_set.abstract_data_set import DataSet
+from brainfeatures.utils.file_util import natural_key, \
     parse_age_and_gender_from_edf_header, numpy_load, json_load, \
     mne_load_signals_and_fs_from_edf, property_in_path, h5_load, \
     replace_extension
-from brainfeaturedecode.cleaning.rules import reject_too_long_recording
+from brainfeatures.cleaning.rules import reject_too_long_recording
 # TODO: this sucks. improve! simplify!
 # TODO: aggregate features on read?
 

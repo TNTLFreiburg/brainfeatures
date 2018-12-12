@@ -1,8 +1,8 @@
 import numpy as np
 
-from brainfeaturedecode.feature_generation.abstract_feature_generator import \
+from brainfeatures.feature_generation.abstract_feature_generator import \
     AbstractFeatureGenerator
-from brainfeaturedecode.utils.file_util import json_load
+from brainfeatures.utils.file_util import json_load
 
 
 class MetaFeatureGenerator(AbstractFeatureGenerator):

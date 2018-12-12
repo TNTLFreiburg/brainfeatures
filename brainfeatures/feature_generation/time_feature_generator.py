@@ -1,8 +1,8 @@
 import numpy as np
 
-from brainfeaturedecode.feature_generation.abstract_feature_generator import \
+from brainfeatures.feature_generation.abstract_feature_generator import \
     AbstractFeatureGenerator
-from brainfeaturedecode.feature_generation import features_time as features_time
+from brainfeatures.feature_generation import features_time as features_time
 
 
 class TimeFeatureGenerator(AbstractFeatureGenerator):
