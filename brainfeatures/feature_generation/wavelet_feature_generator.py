@@ -5,9 +5,9 @@ from pywt._functions import integrate_wavelet, scale2frequency, \
 from pywt import wavedec, dwt_max_level, wavelist
 import numpy as np
 
-from brainfeaturedecode.feature_generation.abstract_feature_generator import \
+from brainfeatures.feature_generation.abstract_feature_generator import \
     AbstractFeatureGenerator
-from brainfeaturedecode.feature_generation import features_wavelets
+from brainfeatures.feature_generation import features_wavelets
 
 
 class WaveletFeatureGenerator(AbstractFeatureGenerator):

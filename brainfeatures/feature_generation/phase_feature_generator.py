@@ -1,6 +1,6 @@
-from brainfeaturedecode.feature_generation.abstract_feature_generator import \
+from brainfeatures.feature_generation.abstract_feature_generator import \
     AbstractFeatureGenerator
-from brainfeaturedecode.feature_generation import features_phase
+from brainfeatures.feature_generation import features_phase
 
 
 class PhaseFeatureGenerator(AbstractFeatureGenerator):

@@ -3,20 +3,20 @@ import pandas as pd
 import numpy as np
 import logging
 
-from brainfeaturedecode.utils.data_util import split_into_epochs, \
+from brainfeatures.utils.data_util import split_into_epochs, \
     apply_window_function, filter_to_frequency_bands, \
     reject_windows_with_outliers
-from brainfeaturedecode.feature_generation.wavelet_feature_generator \
+from brainfeatures.feature_generation.wavelet_feature_generator \
     import WaveletFeatureGenerator
-from brainfeaturedecode.feature_generation.frequency_feature_generator \
+from brainfeatures.feature_generation.frequency_feature_generator \
     import FrequencyFeatureGenerator
-from brainfeaturedecode.feature_generation.phase_feature_generator \
+from brainfeatures.feature_generation.phase_feature_generator \
     import PhaseFeatureGenerator
-from brainfeaturedecode.feature_generation.meta_feature_generator \
+from brainfeatures.feature_generation.meta_feature_generator \
     import MetaFeatureGenerator
-from brainfeaturedecode.feature_generation.time_feature_generator \
+from brainfeatures.feature_generation.time_feature_generator \
     import TimeFeatureGenerator
-from ..utils.data_util import assemble_overlapping_band_limits
+from brainfeatures.utils.data_util import assemble_overlapping_band_limits
 
 
 default_feature_generation_params = {

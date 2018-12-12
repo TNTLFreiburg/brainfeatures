@@ -6,7 +6,7 @@ import numpy as np
 import logging
 import time
 
-from ..analysis.analyze import analyze_quality_of_predictions
+from brainfeatures.analysis.analyze import analyze_quality_of_predictions
 
 # TODO: when using pca, prune not only feature matrices but also feature labels
 # TODO: or do not use pca and feature importances together?

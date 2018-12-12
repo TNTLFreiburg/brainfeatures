@@ -1,7 +1,7 @@
 import numpy as np
 import resampy
 
-from brainfeaturedecode.utils.file_util import get_duration_with_raw_mne
+from brainfeatures.utils.file_util import get_duration_with_raw_mne
 
 
 def reject_too_long_recording(file_, max_recording_mins):
