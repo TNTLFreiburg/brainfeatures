@@ -366,39 +366,3 @@ class Experiment(object):
 
         today, now = date.today(), datetime.time(datetime.now())
         logging.info("Finished on {} at {}.".format(today, now))
-
-    # TODO: add a plotting/analysis function?
-    def plot(self, out_dir=None):
-        """
-        Perform analysis of features.
-        """
-        # do we make analysis on eval set? seems wrong
-        # always analyze correlation of features
-        analyze_feature_correlations(self.features["train"],
-                                     self.feature_labels,
-                                     out_dir)
-
-        # if using random forest (default), analyze its feature_importances
-        feature_importances = []
-        for info in self.info["train"]:
-            if "clf" in info and hasattr(info["clf"], "feature_importances_"):
-                feature_importances.append(
-                    getattr(info["clf"], "feature_importances_"))
-
-        if feature_importances:
-            analyze_feature_importances(
-                feature_importances,
-                self.feature_labels,
-                out_dir)
-
-        # if pca was used, analyze the components
-        pca_components = []
-        for info in self.info["train"]:
-            if "pca" in info:
-                pca_components.append(getattr(info["pca"], "components_"))
-
-        if pca_components:
-            analyze_pca_components(pca_components, self.feature_labels)
-
-        # TODO: generate confusioin matrices, roc auc score, roc auc curves
-        # raise NotImplementedError
