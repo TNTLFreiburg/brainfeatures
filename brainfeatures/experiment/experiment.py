@@ -330,7 +330,7 @@ class Experiment(object):
         self._run_checks()
         do_clean = self.cleaning_procedure is not None
         do_features = self.feature_generation_procedure is not None
-        do_predictions = self.clf is not None
+        do_predictions = (self.clf is not None and self.features["train"])
         for train_or_eval in self.data_sets.keys():
             if do_clean:
                 self._clean(train_or_eval)
