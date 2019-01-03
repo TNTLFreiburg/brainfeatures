@@ -40,10 +40,12 @@ def get_train_test(X, y, train_ind, test_ind):
 def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
     """ split cropped data and target wrt given test ind, s.t. no group is
     accidentally split """
+    assert len(X) == len(y)
     assert not (set(train_ind) & set(test_ind)), \
         "train set and test set overlap!"
     unique_groups = np.unique(epoch_to_group_map)
     unique_test_groups = np.array(unique_groups)[test_ind]
+    assert len(unique_groups) == len(X)
 
     test_groups = []
     X_train, y_train, X_test, y_test = [], [], [], []
@@ -67,7 +69,7 @@ def apply_scaler(X_train, X_test, scaler=StandardScaler()):
     return X_train, X_test
 
 
-def apply_pca(X_train, X_test, pca_thresh):
+def apply_pca(X_train, X_test, pca_thresh, return_pca=True):
     """ apply principal component analysis to reduce dimensionality of feature
     vectors"""
     pca = PCA(n_components=pca_thresh)
@@ -77,7 +79,10 @@ def apply_pca(X_train, X_test, pca_thresh):
     X_test = pca.transform(X_test)
     logging.debug("reduced dimensionality from {} to {}"
                  .format(shape_orig, shape_reduc))
-    return X_train, X_test, {"pca": pca}
+    if return_pca:
+        return X_train, X_test, {"pca": pca}
+    else:
+        return X_train, X_test
 
 
 def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
@@ -100,7 +105,8 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
 
     if hasattr(clf, "predict_proba"):
         # save probabilities of positive class (equal to 1 - negaive class)
-        y_hat = clf.predict_proba(X_test)[:, 1]
+        y_hat = clf.predict_proba(X_test)
+        y_hat = y_hat[:, -1]
     elif hasattr(clf, "decision_function"):
         # for auc save svm distance of points to margin
         y_hat = clf.decision_function(X_test)
