@@ -341,8 +341,7 @@ def generate_features_of_one_file(
     # weight the samples by a window function
     n_samples_in_epoch = int(sfreq * epoch_duration_s)
     weighted_crops = apply_window_function(
-        epochs=crops, window_name=window_name,
-        n_samples_in_epoch=n_samples_in_epoch)
+        epochs=crops, window_name=window_name)
 
     cwt_features = generate_cwt_features(
         crops=weighted_crops, wavelet=continuous_wavelet, sfreq=sfreq,

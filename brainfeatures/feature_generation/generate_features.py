@@ -99,8 +99,7 @@ def generate_features_of_one_file(signals, sfreq, epoch_duration_s,
     # weight the samples by a window function
     n_samples_in_epoch = int(sfreq * epoch_duration_s)
     weighted_epochs = apply_window_function(
-        epochs=epochs, window_name=window_name,
-        n_samples_in_epoch=n_samples_in_epoch)
+        epochs=epochs, window_name=window_name)
 
     generators = OrderedDict()
     params = OrderedDict()
