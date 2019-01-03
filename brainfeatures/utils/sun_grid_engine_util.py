@@ -48,7 +48,6 @@ def parse_run_args():
         ['gamma', float],
         ['max_depth', int],
         ['max_features', str],
-        ['meta_feature_id', str],
         ['min_samples_leaf', int],
         ['min_samples_split', int],
         ['model', str],
@@ -72,11 +71,6 @@ def parse_run_args():
         exit()
 
     known_vars = vars(known)
-
-    try:
-        known_vars["meta_feature_id"] = int(known_vars["meta_feature_id"])
-    except:
-        known_vars["meta_feature_id"] = None
 
     try:
         known_vars["n_recordings"] = int(known_vars["n_recordings"])
