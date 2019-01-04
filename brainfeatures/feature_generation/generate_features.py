@@ -66,11 +66,13 @@ def run_checks(band_limits, sfreq, epoch_duration_s, agg_mode, window_name,
             assert domain in valid_domains
 
 
-def generate_features_of_one_file(signals, sfreq, epoch_duration_s,
-                                  max_abs_val, window_name,
-                                  band_limits, channels, agg_mode,
-                                  discrete_wavelet, continuous_wavelet,
-                                  band_overlap, domains="all"):
+def generate_features_of_one_file(signals: np.ndarray, sfreq: int,
+                                  epoch_duration_s: int, max_abs_val: int,
+                                  window_name: str, band_limits: list,
+                                  channels: list, agg_mode: str,
+                                  discrete_wavelet: str,
+                                  continuous_wavelet: str, band_overlap: bool,
+                                  domains="all") -> pd.DataFrame:
     band_limits = np.array(band_limits)
     # run checks / assertions
     run_checks(band_limits, sfreq, epoch_duration_s, agg_mode, window_name,
@@ -127,15 +129,6 @@ def generate_features_of_one_file(signals, sfreq, epoch_duration_s,
                 agg=agg_mode, bands=band_limits, elecs=channels,
                 sfreq=sfreq)})
         params.update({"DFTFeatureGenerator": weighted_epochs})
-
-    # if "meta" in domains or "all" in domains:
-    #     if file_name is None:
-    #         logging.warning("cannot use meta feature generator")
-    #     else:
-    #         generators.update({
-    #             "MetaFeatureGenerator": MetaFeatureGenerator(
-    #                 agg=agg_mode, elecs=channels, n_epochs=len(epochs))})
-    #         params.update({"MetaFeatureGenerator": file_name})
 
     if "phase" in domains or "all" in domains:
         band_signals = filter_to_frequency_bands(
