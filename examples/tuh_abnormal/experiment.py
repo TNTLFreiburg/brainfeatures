@@ -1,6 +1,6 @@
-from brainfeaturedecode.data_set.tuh_abnormal import TuhAbnormalTrain, \
+from brainfeatures.data_set.tuh_abnormal import TuhAbnormalTrain, \
     TuhAbnormalEval
-from brainfeaturedecode.experiment.experiment import Experiment
+from brainfeatures.experiment.experiment import Experiment
 
 
 def main():

@@ -23,14 +23,14 @@ def main():
         "export PYTHONPATH={}\n" \
         "{} {} {}\n "
 
-    configs_file = "/home/gemeinl/code/brainfeaturedecode/examples/tuh_abnormal/configs.csv"
+    configs_file = "/home/gemeinl/code/brainfeatures/examples/tuh_abnormal/configs.csv"
     # load all the configs to be run
     configs_df = pd.DataFrame.from_csv(configs_file)
 
     # specify python path, virtual env and python cript to be run
-    python_path = '/home/gemeinl/code/brainfeaturedecode'
+    python_path = '/home/gemeinl/code/brainfeatures'
     virtual_env = '/home/gemeinl/venvs/auto-eeg-diag/bin/python'
-    python_file = '/home/gemeinl/code/brainfeaturedecode/examples/tuh_abnormal/decode.py'
+    python_file = '/home/gemeinl/code/brainfeatures/examples/tuh_abnormal/decode.py'
 
     # specify queue, temporary job file and command to submit
     # queue = "meta_core.q"
@@ -57,6 +57,7 @@ def main():
         # write tmp job file and submit it to sge
         with open(curr_script_name, "w") as f:
             f.writelines(curr_job_file)
+        print(curr_job_file)
 
         # when this is not the first batch, add dependecy on the previous batch
         dependency_job_name = "j_" + str(i-1) + ".pbs"

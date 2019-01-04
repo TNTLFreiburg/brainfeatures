@@ -2,7 +2,7 @@ import pandas as pd
 import logging
 import re
 
-from brainfeaturedecode.data_set.tuh_abnormal import _read_all_file_names
+from brainfeatures.data_set.tuh_abnormal import _read_all_file_names
 
 
 def merge_two_columns(df, to_replace, replace_by, drop_replaced_column=False):

@@ -1,8 +1,8 @@
 from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 
-from brainfeaturedecode.data_set.tuh_abnormal import TuhAbnormalTrain
-from brainfeaturedecode.decoding.decode import tune
+from brainfeatures.data_set.tuh_abnormal import TuhAbnormalTrain
+from brainfeatures.decoding.decode import tune
 
 # Number of trees in random forest
 n_estimators = [int(x) for x in np.linspace(200, 2000, 10)]

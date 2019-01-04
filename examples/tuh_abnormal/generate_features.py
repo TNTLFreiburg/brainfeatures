@@ -2,11 +2,11 @@ from datetime import datetime, date
 import pandas as pd
 import logging
 
-from brainfeaturedecode.feature_generation.generate_features import \
+from brainfeatures.feature_generation.generate_features import \
     generate_features_of_one_file
-from brainfeaturedecode.utils.file_util import pandas_store_as_h5
-from brainfeaturedecode.data_set.tuh_abnormal import TuhAbnormal
-from brainfeaturedecode.utils.sun_grid_engine_util import \
+from brainfeatures.utils.file_util import pandas_store_as_h5
+from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
+from brainfeatures.utils.sun_grid_engine_util import \
     determime_curr_file_id
 
 

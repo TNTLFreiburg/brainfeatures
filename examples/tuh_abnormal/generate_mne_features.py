@@ -3,12 +3,12 @@ from mne_features.bivariate import get_bivariate_funcs
 from datetime import datetime, date
 import logging
 
-from brainfeaturedecode.feature_generation.generate_mne_features import \
+from brainfeatures.feature_generation.generate_mne_features import \
     generate_mne_features_of_one_file, default_mne_feature_generation_params
-from brainfeaturedecode.utils.file_util import numpy_store, json_store, \
+from brainfeatures.utils.file_util import numpy_store, json_store, \
     replace_extension
-from brainfeaturedecode.data_set.tuh_abnormal import TuhAbnormal
-from brainfeaturedecode.utils.sun_grid_engine_util import \
+from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
+from brainfeatures.utils.sun_grid_engine_util import \
     determime_curr_file_id
 
 

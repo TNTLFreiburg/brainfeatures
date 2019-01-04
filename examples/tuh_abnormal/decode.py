@@ -7,10 +7,10 @@ import logging
 import time
 import os
 
-from brainfeaturedecode.data_set.tuh_abnormal import TuhFeatures
-from brainfeaturedecode.utils.sun_grid_engine_util import parse_run_args
-from brainfeaturedecode.experiment.experiment import Experiment
-from brainfeaturedecode.utils.file_util import json_store
+from brainfeatures.data_set.tuh_abnormal import TuhFeatures
+from brainfeatures.utils.sun_grid_engine_util import parse_run_args
+from brainfeatures.experiment.experiment import Experiment
+from brainfeatures.utils.file_util import json_store
 
 
 def root_mean_squared_error(y_true, y_pred, sample_weight=None, multioutput='uniform_average'):
@@ -20,7 +20,7 @@ def root_mean_squared_error(y_true, y_pred, sample_weight=None, multioutput='uni
 # TODO: add to cropped features as well
 def add_meta_feature(exp):
     features_to_add = ["age", "gender"]
-    target = exp.data_sets["train"].task
+    target = exp.data_sets["train"].target
     features_to_add.remove(target)
     if "eval" in exp.features:
         ds = exp.data_sets["eval"]
