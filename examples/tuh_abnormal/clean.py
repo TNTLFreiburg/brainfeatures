@@ -2,11 +2,11 @@ from datetime import datetime, date
 import logging
 import resampy
 
-from brainfeaturedecode.utils.file_util import h5_store, json_store, \
+from brainfeatures.utils.file_util import h5_store, json_store, \
     replace_extension
-from brainfeaturedecode.cleaning.clean_raw import clean_one_file
-from brainfeaturedecode.data_set.tuh_abnormal import TuhAbnormal
-from brainfeaturedecode.utils.sun_grid_engine_util import \
+from brainfeatures.cleaning.clean_raw import clean_one_file
+from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
+from brainfeatures.utils.sun_grid_engine_util import \
     determime_curr_file_id
 
 
