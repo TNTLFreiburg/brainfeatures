@@ -16,7 +16,7 @@ from brainfeatures.feature_generation.meta_feature_generator \
     import MetaFeatureGenerator
 from brainfeatures.feature_generation.time_feature_generator \
     import TimeFeatureGenerator
-from ..utils.data_util import assemble_overlapping_band_limits
+from brainfeatures.utils.data_util import assemble_overlapping_band_limits
 
 
 default_feature_generation_params = {

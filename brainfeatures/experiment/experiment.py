@@ -13,6 +13,7 @@ from brainfeatures.feature_generation.generate_features import \
 from brainfeatures.analysis.analyze import analyze_quality_of_predictions, \
     analyze_feature_importances, analyze_feature_correlations, \
     analyze_pca_components
+
 from brainfeatures.decoding.decode import validate, final_evaluate
 
 # TODO: add cropping feature vector?
@@ -332,7 +333,7 @@ class Experiment(object):
         self._run_checks()
         do_clean = self.cleaning_procedure is not None
         do_features = self.feature_generation_procedure is not None
-        do_predictions = self.clf is not None
+        do_predictions = (self.clf is not None and self.features["train"])
         for train_or_eval in self.data_sets.keys():
             if do_clean:
                 self._clean(train_or_eval)
