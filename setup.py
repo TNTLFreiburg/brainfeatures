@@ -24,7 +24,7 @@ setup(
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/robintibor/brainfeatures',
+    url='https://github.com/gemeinl/brainfeatures',
 
     # Author details
     author='Lukas Alexander Wilhelm Gemein',
