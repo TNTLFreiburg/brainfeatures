@@ -28,7 +28,7 @@ setup(
 
     # Author details
     author='Lukas Alexander Wilhelm Gemein',
-    author_email='lukas.gemein@gmail.com',
+    author_email='l.gemein@gmail.com',
 
     # Choose your license
     license='BSD 3-Clause',
