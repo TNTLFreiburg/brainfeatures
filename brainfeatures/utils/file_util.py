@@ -1,8 +1,29 @@
 from mne.io import read_raw_edf
 import pandas as pd
 import numpy as np
+import h5py
 import os
 import re
+
+
+def replace_extension(path, new_extension):
+    assert new_extension.startswith(".")
+    old_exension = os.path.splitext(path)[1]
+    path = path.replace(old_exension, new_extension)
+    return path
+
+
+def h5_load(path):
+    """ load signals from h5 """
+    assert os.path.exists(path), "file not found {}".format(path)
+    f = h5py.File(path, "r")
+    x = f["signals"][:]
+    f.close()
+    if len(x.shape) == 2:
+        xdim, ydim = x.shape
+        if xdim > ydim:
+            x = x.T
+    return x.astype(np.float64)
 
 
 def mne_load_signals_and_fs_from_edf(file_, wanted_chs, ch_name_pattern=None,
