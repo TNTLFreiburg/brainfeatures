@@ -13,14 +13,9 @@ from brainfeatures.feature_generation.generate_features import \
 from brainfeatures.analysis.analyze import analyze_quality_of_predictions
 from brainfeatures.decoding.decode import validate, final_evaluate
 
-# TODO: add cropping feature vector?
 # TODO: move agg mode out of feature generators to experiment? -> moves a lot of data around
-# TODO: make sure to not run when feature generation procedure is specified but data set is raw? how to know? -> no, it's fine to not apply cleaning rules
 # TODO: free memory? how much memory is needed?
-# TODO: use feature labels / load feature labels? -> no this will be done in analysis
 # TODO: split train into train/test before cleaning/feature generation?
-# TODO: make meta feature generation usable with experiment class?
-# TODO: add simple tuning to find hyperparameters?
 
 
 class Experiment(object):
@@ -345,19 +340,18 @@ class Experiment(object):
 
             # if "eval" is set, don't run cv?
             # and "eval" not in self.data_sets \
-            if train_or_eval == "train" \
-                    and do_predictions:
-                # TODO: don't give self there as an argument
+            if train_or_eval == "train" and do_predictions:
                 if self.feature_vector_modifier is not None:
-                    self.feature_vector_modifier(self)
+                    self.feature_vector_modifier(self.features[train_or_eval],
+                                                 self.feature_labels)
                 self._validate()
                 if self.metrics is not None:
                     self._analyze_performance(train_or_eval)
 
             elif train_or_eval == "eval" and do_predictions:
-                # TODO: don't give self there as an argument
                 if self.feature_vector_modifier is not None:
-                    self.feature_vector_modifier(self)
+                    self.feature_vector_modifier(self.features[train_or_eval],
+                                                 self.feature_labels)
                 self._final_evaluate()
                 if self.metrics is not None:
                     self._analyze_performance(train_or_eval)
