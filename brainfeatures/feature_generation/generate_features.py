@@ -12,8 +12,6 @@ from brainfeatures.feature_generation.frequency_feature_generator \
     import FrequencyFeatureGenerator
 from brainfeatures.feature_generation.phase_feature_generator \
     import PhaseFeatureGenerator
-from brainfeatures.feature_generation.meta_feature_generator \
-    import MetaFeatureGenerator
 from brainfeatures.feature_generation.time_feature_generator \
     import TimeFeatureGenerator
 from brainfeatures.utils.data_util import assemble_overlapping_band_limits
@@ -23,10 +21,6 @@ default_feature_generation_params = {
     "epoch_duration_s": 4,
     "max_abs_val": 800,
     "window_name": "blackmanharris",
-    # "band_limits": np.array(
-    #     [[0, 2], [1, 3], [2, 4], [3, 6], [4, 8], [6, 10], [8, 13], [10, 15],
-    #      [13, 18], [15, 21], [18, 24], [21, 27], [24, 30], [27, 40],
-    #      [30, 49.9]]),
     "band_limits": np.array(
         [[0, 2], [2, 4],  [4, 8], [8, 13],
          [13, 18],  [18, 24], [24, 30], [30, 49.9]]),

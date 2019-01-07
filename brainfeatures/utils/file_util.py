@@ -2,7 +2,6 @@ from mne.io import read_raw_edf
 import pandas as pd
 import numpy as np
 import h5py
-import json
 import os
 import re
 
@@ -12,51 +11,6 @@ def replace_extension(path, new_extension):
     old_exension = os.path.splitext(path)[1]
     path = path.replace(old_exension, new_extension)
     return path
-
-
-def json_store(to_store, path):
-    """ store sth to json file """
-    assert path.endswith(".json"), "wrong file extension"
-    if not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
-    with open(path, "w") as json_file:
-        json.dump(to_store, json_file, indent=4, sort_keys=True)
-
-
-def json_load(path):
-    """ load sth from json file """
-    assert os.path.exists(path), "file not found {}".format(path)
-    with open(path, "r") as json_file:
-        loaded = json.load(json_file)
-    return loaded
-
-
-def numpy_store(path, data):
-    """ store sth to .npy file """
-    assert path.endswith(".npy"), "wrong file extension"
-    if not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
-    np.save(path, data)
-
-
-def numpy_load(path):
-    """ load a numpy file. make sure it exists """
-    assert os.path.exists(path), "file not found {}".format(path)
-    x = np.load(path)
-    if len(x.shape) == 2:
-        (xdim, ydim) = x.shape
-        if xdim > ydim:
-            x = x.T
-    return x.astype(np.float64)
-
-
-def h5_store(path, data):
-    assert path.endswith(".h5"), "wrong file extension"
-    if not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
-    f = h5py.File(path, "w")
-    f["signals"] = data
-    f.close()
 
 
 def h5_load(path):
@@ -70,26 +24,6 @@ def h5_load(path):
         if xdim > ydim:
             x = x.T
     return x.astype(np.float64)
-
-
-def pandas_store(path, df):
-    """ store a pandas df as csv file """
-    if not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
-    df.to_csv(path)
-
-
-def pandas_store_as_h5(path, df, key_):
-    """ store a pandas df to h5 """
-    if not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
-    df.to_hdf(path, key_)
-
-
-def pandas_load_from_csv(path):
-    """ load a csv file to pandas data frame """
-    assert os.path.exists(path), "file not found {}".format(path)
-    return pd.DataFrame.from_csv(path)
 
 
 def mne_load_signals_and_fs_from_edf(file_, wanted_chs, ch_name_pattern=None,
@@ -118,25 +52,12 @@ def mne_load_signals_and_fs_from_edf(file_, wanted_chs, ch_name_pattern=None,
 
 
 def get_duration_with_raw_mne(file_path):
+    """ get duration from raw edf mne object without loading it """
     assert os.path.exists(file_path), "file not found {}".format(file_path)
     raw = read_raw_edf(file_path, verbose="error")
     n_sampels = raw._raw_lengths[0]
     sfreq = raw.info["sfreq"]
     return int(n_sampels / sfreq)
-
-
-def parse_recording_length_from_edf_header(file_path):
-    """ some recordings were that huge that simply opening them with mne
-    caused the program to crash. therefore, open the edf as bytes and only read
-    the header. parse the duration from there and check if the file can safely
-    be opened
-    """
-    assert file_path.endswith(".edf"), "unknown file type"
-    assert os.path.exists(file_path), "file not found {}".format(file_path)
-    f = open(file_path, 'rb')
-    header = f.read(256)
-    f.close()
-    return int(header[236:244].decode('ascii'))
 
 
 def parse_age_and_gender_from_edf_header(file_path):
@@ -163,24 +84,6 @@ def parse_property_from_file_name(curr_file, property):
     tokens = tmp_file.split('_')
     value = tokens[tokens.index(property) + 1]
     return value
-
-
-def parse_pathological_from_file_name(curr_file):
-    """ parse pathology status from file name """
-    assert os.path.exists(curr_file), "file not found {}".format(curr_file)
-    pathologicals = parse_property_from_file_name(curr_file, "pathological")
-    return [True if y == "True" else False for y in pathologicals]
-
-
-def parse_age_from_file_name(curr_file):
-    """ parse age from file name """
-    assert os.path.exists(curr_file), "file not found {}".format(curr_file)
-    return int(parse_property_from_file_name(curr_file, "age"))
-
-
-def parse_gender_from_file_name(curr_file):
-    assert os.path.exists(curr_file), "file not found {}".format(curr_file)
-    return parse_property_from_file_name(curr_file, "gender")
 
 
 def property_in_path(curr_path, property):

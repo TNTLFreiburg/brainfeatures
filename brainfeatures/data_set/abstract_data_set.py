@@ -2,10 +2,9 @@ from abc import ABCMeta, abstractmethod
 
 """
 custom data set can be inherited from DataSet. it has to implement a 
-__getitem__ and a __len__ function if data set should be used on raw data, 
-__getitem__ should return a 3-tuple of signals array, sampling frequency and 
-label if data set should be used on cleaned data or features, __getitem__ 
-should return a 2-tuple of signals array and label
+__getitem__ and a __len__ function returning a 3-tuple of signals array, 
+sampling frequency and label and giving the number of examples in the
+data set, respectively
 """
 
 
