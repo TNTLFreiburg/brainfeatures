@@ -1,17 +1,13 @@
 from glob import glob
 import pandas as pd
 import numpy as np
-import h5py
 import re
 
 from brainfeatures.data_set.abstract_data_set import DataSet
 from brainfeatures.utils.file_util import natural_key, \
-    parse_age_and_gender_from_edf_header, numpy_load, json_load, \
-    mne_load_signals_and_fs_from_edf, property_in_path, h5_load, \
-    replace_extension
+    parse_age_and_gender_from_edf_header, \
+    mne_load_signals_and_fs_from_edf, property_in_path, h5_load
 from brainfeatures.cleaning.rules import reject_too_long_recording
-# TODO: this sucks. improve! simplify!
-# TODO: aggregate features on read?
 
 
 # check whether this can be replaced by natural key
@@ -52,67 +48,6 @@ def _read_all_file_names(path, extension, key="time"):
         "something went wrong. Found no {} files in {}".format(
             extension, path)
     return file_names
-
-
-class TuhFeatures(DataSet):
-    def __init__(self, data_path, target="pathological", data_key="features", info_key="info",
-                 n_recordings=None):
-        super(TuhFeatures, self).__init__()
-        self.data_path = data_path
-        self.target = target
-        self.file_names = []
-        self.feature_labels = None
-        self.orig_file_names = []
-        self.pathologicals = []
-        self.genders = []
-        self.targets = []
-        self.ages = []
-        self.data_key = data_key
-        self.info_key = info_key
-        self.n_recordings=n_recordings
-
-    def load(self):
-        self.file_names = _read_all_file_names(self.data_path, "h5", key="natural")
-        if self.n_recordings is not None:
-            self.file_names = self.file_names[:self.n_recordings]
-        self.orig_file_names = [None] * len(self.file_names)
-        self.pathologicals = [None] * len(self.file_names)
-        self.genders = [None] * len(self.file_names)
-        self.ages = [None] * len(self.file_names)
-        self.targets = [None] * len(self.file_names)
-
-    def get_raw(self, index):
-        file_name = self.file_names[index]
-        features_df = pd.read_hdf(file_name, key=self.data_key)
-        if self.info_key:
-            info_df = pd.read_hdf(file_name, key=self.info_key)
-            return features_df, info_df
-        return features_df, None
-
-    def __getitem__(self, index):
-        file_ = self.file_names[index]
-        x = pd.read_hdf(file_, key=self.data_key)
-        feature_labels = list(x.columns)
-        x = np.array(x).squeeze()
-        if self.feature_labels is None:
-            self.feature_labels = feature_labels
-
-        if self.info_key:
-            info = pd.read_hdf(file_, key=self.info_key)
-            info = info.iloc[0]
-            fs = info["sfreq"]
-            y = info[self.target]
-
-            self.orig_file_names[index] = info["name"]
-            self.pathologicals[index] = info["pathological"]
-            self.targets[index] = info[self.target]
-            self.genders[index] = info["gender"]
-            self.ages[index] = info["age"]
-            return x, fs, y
-        return x, None, None
-
-    def __len__(self):
-        return len(self.file_names)
 
 
 class TuhAbnormal(DataSet):
@@ -184,20 +119,11 @@ class TuhAbnormal(DataSet):
                 pathological = property_in_path(file_name, "abnormal")
                 age, gender = parse_age_and_gender_from_edf_header(file_name)
             else:
-                # load info json file of clean recording
-                # get pathological status, age, gender and sfreq for clean file
-                new_file_name = replace_extension(file_name, ".json")
-                info = json_load(new_file_name)
-                pathological = info["pathological"]
-                age = int(info["age"])
-                gender = info["gender"]
-                self.sfreqs.append(info["sfreq"])
-            # else:
-            #     df = pd.read_hdf(file_name)
-            #     pathological = df["pathological"]
-            #     age = df["age"]
-            #     gender = df["gender"]
-            #     self.sfreqs.append(df["sfreq"])
+                df = pd.read_hdf(file_name)
+                pathological = df["pathological"]
+                age = df["age"]
+                gender = df["gender"]
+                self.sfreqs.append(df["sfreq"])
 
             targets = {"pathological": pathological, "age": age, "gender": gender}
             self.targets.append(targets[self.target])
@@ -227,32 +153,9 @@ class TuhAbnormal(DataSet):
             signals, sfreq = mne_load_signals_and_fs_from_edf(
                 file_, self.channels, self.ch_name_pattern)
             return signals, sfreq, label
-        elif self.extension == ".npy":
-            data = numpy_load(file_)
-            return data, self.sfreqs[index], label
         elif self.extension == ".h5":
             data = h5_load(file_)
             return data, self.sfreqs[index], label
 
     def __len__(self):
         return len(self.file_names)
-
-
-class TuhAbnormalTrain(TuhAbnormal):
-    """ train subset of tuh abnormal"""
-    def __init__(self, data_path, extension, target, max_recording_mins,
-                 n_recordings=None, key="time"):
-        TuhAbnormal.__init__(self, data_path=data_path, extension=extension,
-                             key=key, n_recordings=n_recordings, target=target,
-                             max_recording_mins=max_recording_mins,
-                             subset="train")
-
-
-class TuhAbnormalEval(TuhAbnormal):
-    """ eval subset of tuh abnormal"""
-    def __init__(self, data_path, extension, target, max_recording_mins,
-                 n_recordings=None, key="time"):
-        TuhAbnormal.__init__(self, data_path=data_path, extension=extension,
-                             key=key, n_recordings=n_recordings, target=target,
-                             max_recording_mins=max_recording_mins,
-                             subset="eval")

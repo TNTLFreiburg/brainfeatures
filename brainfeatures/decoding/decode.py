@@ -1,5 +1,5 @@
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold, ParameterSampler
+from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition.pca import PCA
 import pandas as pd
 import numpy as np
@@ -94,6 +94,7 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
         X_train, X_test, pca_info = apply_pca(X_train, X_test, pca_thresh)
         info.update(pca_info)
     clf = clf.fit(X_train, y_train)
+    # TODO: use rfpimp package to get more reliable feature importances
     if hasattr(clf, "feature_importances_"):
         # save random forest feature importances for analysis
         info.update({"feature_importances": clf.feature_importances_})
@@ -216,6 +217,7 @@ def validate(X, y, clf, n_splits, shuffle_splits,
     else:
         splits = kf.split(X)
 
+    # TODO: use yield here?
     for fold_id, (train_ind, test_ind) in enumerate(splits):
         logging.debug("this is fold {}".format(fold_id))
         if hasattr(clf, "random_state"):
@@ -247,9 +249,9 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
     info_by_repetition = pd.DataFrame()
     for repetition_id in range(n_repetitions):
         logging.debug("this is repetition {}".format(repetition_id))
-        if hasattr(clf, "random_state"):
-            clf.random_state = repetition_id
-            logging.debug("set random state to {}".format(repetition_id))
+        # if hasattr(clf, "random_state"):
+        #     clf.random_state = repetition_id
+        #     logging.debug("set random state to {}".format(repetition_id))
 
         predictions, info = decode_once(X, X_eval, y, clf, scaler, pca_thresh)
         predictions_df = create_df_from_predictions(repetition_id, predictions,
