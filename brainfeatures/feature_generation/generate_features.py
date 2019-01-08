@@ -24,9 +24,6 @@ default_feature_generation_params = {
     "band_limits": np.array(
         [[0, 2], [2, 4],  [4, 8], [8, 13],
          [13, 18],  [18, 24], [24, 30], [30, 49.9]]),
-    "channels": sorted(
-        ['A1', 'A2', 'C3', 'C4', 'CZ', 'F3', 'F4', 'F7', 'F8', 'FP1', 'FP2',
-         'FZ', 'O1', 'O2', 'P3', 'P4', 'PZ', 'T3', 'T4', 'T5', 'T6']),
     "agg_mode": "median",
     "discrete_wavelet": "db4",
     "continuous_wavelet": "morl",
@@ -34,6 +31,7 @@ default_feature_generation_params = {
 }
 
 
+# TODO: check if enough samples in epochs
 def run_checks(band_limits, sfreq, epoch_duration_s, agg_mode, window_name,
                domains):
     nyquist_freq = sfreq / 2
@@ -45,13 +43,12 @@ def run_checks(band_limits, sfreq, epoch_duration_s, agg_mode, window_name,
     band_widths = np.array(band_widths)
     assert np.sum(band_widths < bin_size) == 0, \
         "Cannot have frequency bands smaller than bin size {}".format(bin_size)
+    print(agg_mode)
     assert agg_mode in ["mean", "median", "var", "None", "none", None], \
         "Unknown aggregation mode {}".format(agg_mode)
     assert window_name in ["boxcar", "blackmanharris", "hamming", "hann",
                            "flattop", "triangle"], \
         "Cannot have a window {}".format(window_name)
-    # TODO: check if enough samples in epochs
-    n_samples_in_epoch = int(sfreq * epoch_duration_s)
     valid_domains = ["cwt", "dwt", "dft", "meta", "phase", "time", "all"]
     if type(domains) is not list:
         assert domains in valid_domains
@@ -60,11 +57,10 @@ def run_checks(band_limits, sfreq, epoch_duration_s, agg_mode, window_name,
             assert domain in valid_domains
 
 
-def generate_features_of_one_file(signals: np.ndarray, sfreq: int,
+def generate_features_of_one_file(signals: pd.DataFrame, sfreq: int,
                                   epoch_duration_s: int, max_abs_val: int,
                                   window_name: str, band_limits: list,
-                                  channels: list, agg_mode: str,
-                                  discrete_wavelet: str,
+                                  agg_mode: str, discrete_wavelet: str,
                                   continuous_wavelet: str, band_overlap: bool,
                                   domains="all") -> pd.DataFrame:
     band_limits = np.array(band_limits)
@@ -81,6 +77,9 @@ def generate_features_of_one_file(signals: np.ndarray, sfreq: int,
     else:
         agg_mode = getattr(np, agg_mode)
 
+    channels = signals.index
+    signals = np.array(signals)
+
     # split into epochs
     epochs = split_into_epochs(
         signals=signals, sfreq=sfreq, epoch_duration_s=epoch_duration_s)
@@ -93,7 +92,6 @@ def generate_features_of_one_file(signals: np.ndarray, sfreq: int,
         logging.warning("removed all epochs due to outliers")
         return None, None
     # weight the samples by a window function
-    n_samples_in_epoch = int(sfreq * epoch_duration_s)
     weighted_epochs = apply_window_function(
         epochs=epochs, window_name=window_name)
 

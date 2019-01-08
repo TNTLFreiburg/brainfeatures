@@ -1,8 +1,10 @@
 from datetime import datetime, date
+import pandas as pd
+import numpy as np
 import logging
 import resampy
 
-from brainfeatures.utils.file_util import h5_store, json_store, \
+from brainfeatures.utils.file_util import pandas_store_as_h5, \
     replace_extension
 from brainfeatures.cleaning.clean_raw import clean_one_file
 from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
@@ -10,11 +12,19 @@ from brainfeatures.utils.sun_grid_engine_util import \
     determime_curr_file_id
 
 
-def clean_one_file_and_generate_info(signals, sfreq, pathological, age, gender,
-                                     sec_to_cut_start, sec_to_cut_end,
-                                     duration_recording_mins, resample_freq,
-                                     max_abs_val, clip_before_resample):
-    signals, resample_freq = clean_one_file(
+def process_one_file(data_set, file_id, in_dir, out_dir, sec_to_cut_start,
+                     sec_to_cut_end, duration_recording_mins, resample_freq,
+                     max_abs_val, clip_before_resample):
+    file_name = data_set.file_names[file_id]
+    logging.info("loading {}: {}".format(file_id, file_name))
+    signals, sfreq, pathological = data_set[file_id]
+    age = data_set.ages[file_id]
+    gender = data_set.genders[file_id]
+
+    channels = signals.index
+    signals = np.array(signals)
+
+    clean_signals, resample_freq = clean_one_file(
         signals=signals,
         fs=sfreq,
         sec_to_cut_start=sec_to_cut_start,
@@ -23,63 +33,24 @@ def clean_one_file_and_generate_info(signals, sfreq, pathological, age, gender,
         resample_freq=resample_freq,
         max_abs_val=max_abs_val,
         clip_before_resample=clip_before_resample)
-    info = {
+    clean_df = pd.DataFrame(clean_signals, index=channels)
+
+    # also include sec_to_cut_start, duration_recording_mins etc in additional info?
+    additional_info = {
         "sfreq": resample_freq,
         "pathological": pathological,
         "age": age,
         "gender": gender,
         "n_samples": signals.shape[1]
     }
-    return signals, info
+    info_df = pd.DataFrame(additional_info, index=[0])
 
-
-def store_clean_signals_and_info(signals, info, in_dir, out_dir, file_name):
-    file_name = file_name.replace(in_dir, out_dir)
-    new_file_name = replace_extension(path=file_name, new_extension=".json")
-    json_store(to_store=info, path=new_file_name)
-    new_file_name = replace_extension(path=file_name, new_extension=".h5")
-    # save signals as n_samples x n_channels since it reduces time of loading
-    # chunks
-    h5_store(data=signals.T, path=new_file_name)
+    new_file_name = file_name.replace(in_dir, out_dir)
+    new_file_name = replace_extension(new_file_name, ".h5")
+    # store as n_times x n_channels since this is faster in lazy loading with cnns
+    pandas_store_as_h5(new_file_name, clean_df.T, "data")
+    pandas_store_as_h5(new_file_name, info_df, "info")
     logging.info("wrote clean signals to {}".format(new_file_name))
-
-
-def load_one_file_and_info_from_data_set(data_set, file_id):
-    file_name = data_set.file_names[file_id]
-    logging.info("loading {}: {}".format(file_id, file_name))
-    signals, sfreq, pathological = data_set[file_id]
-    age = data_set.ages[file_id]
-    gender = data_set.genders[file_id]
-    return signals, sfreq, pathological, age, gender, file_name
-
-
-def process_one_file(data_set, file_id, in_dir, out_dir, sec_to_cut_start,
-                     sec_to_cut_end, duration_recording_mins, resample_freq,
-                     max_abs_val, clip_before_resample):
-    signals, sfreq, pathological, age, gender, file_name = \
-        load_one_file_and_info_from_data_set(
-            data_set=data_set,
-            file_id=file_id)
-
-    clean_signals, info = clean_one_file_and_generate_info(
-        signals=signals,
-        sfreq=sfreq,
-        pathological=pathological,
-        age=age,
-        gender=gender,
-        sec_to_cut_start=sec_to_cut_start,
-        sec_to_cut_end=sec_to_cut_end,
-        duration_recording_mins=duration_recording_mins,
-        resample_freq=resample_freq,
-        max_abs_val=max_abs_val,
-        clip_before_resample=clip_before_resample)
-
-    store_clean_signals_and_info(
-        signals=clean_signals,
-        info=info,
-        in_dir=in_dir,
-        out_dir=out_dir,
-        file_name=file_name)
 
 
 def clean_main():
@@ -96,6 +67,7 @@ def clean_main():
     logging.info("reading from {}".format(in_dir))
     logging.info("wrtiting to {}".format(out_dir))
 
+    train_or_eval = "train"
     sec_to_cut_start = 60
     sec_to_cut_end = 0
     duration_recording_mins = 20
@@ -107,7 +79,8 @@ def clean_main():
     run_on_cluster = True
 
     tuh_abnormal = TuhAbnormal(in_dir, ".edf", n_recordings=n_recordings,
-                               max_recording_mins=max_recording_mins)
+                               max_recording_mins=max_recording_mins,
+                               subset=train_or_eval)
     tuh_abnormal.load()
 
     logging.info("there are {} recordings".format(len(tuh_abnormal)))

@@ -2,6 +2,7 @@ from mne.io import read_raw_edf
 import pandas as pd
 import numpy as np
 import h5py
+import json
 import os
 import re
 
@@ -26,6 +27,22 @@ def h5_load(path):
     return x.astype(np.float64)
 
 
+def json_store(to_store, path):
+    """ store sth to json file """
+    assert path.endswith(".json"), "wrong file extension"
+    if not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
+    with open(path, "w") as json_file:
+        json.dump(to_store, json_file, indent=4, sort_keys=True)
+
+
+def pandas_store_as_h5(path, df, key_):
+    """ store a pandas df to h5 """
+    if not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
+    df.to_hdf(path, key_)
+
+
 def mne_load_signals_and_fs_from_edf(file_, wanted_chs, ch_name_pattern=None,
                                      factor=1e6):
     """ read an edf file, pick channels, scale with factor and return signals
@@ -46,8 +63,9 @@ def mne_load_signals_and_fs_from_edf(file_, wanted_chs, ch_name_pattern=None,
             ', '.join(raw.ch_names), ', '.join(chs))
 
     signals = raw.get_data()
-    if factor:
+    if factor is not None:
         signals = signals * factor
+    signals = pd.DataFrame(signals, index=wanted_chs)
     return signals, fs
 
 

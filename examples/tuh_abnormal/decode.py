@@ -7,8 +7,8 @@ import logging
 import time
 import os
 
-from brainfeatures.data_set.tuh_abnormal import TuhFeatures
 from brainfeatures.utils.sun_grid_engine_util import parse_run_args
+from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
 from brainfeatures.experiment.experiment import Experiment
 from brainfeatures.utils.file_util import json_store
 
@@ -53,12 +53,14 @@ def run_exp(train_dir, eval_dir, model, n_folds_or_repetitions,
             min_samples_split, min_samples_leaf, criterion, max_depth, max_features,
             n_estimators, result_dir, feature_vector_modifier=add_meta_feature):
 
-    train_set_feats = TuhFeatures(train_dir, target=task, n_recordings=n_recordings)
+    train_set_feats = TuhAbnormal(train_dir, target=task, n_recordings=n_recordings,
+                                  subset="train", extension=".h5")
     train_set_feats.load()
 
     eval_set_feats = None
     if eval_dir is not None:
-        eval_set_feats = TuhFeatures(eval_dir, target=task)
+        eval_set_feats = TuhAbnormal(eval_dir, target=task,
+                                     subset="eval", extension=".h5")
         eval_set_feats.load()
 
     if model == "rf":

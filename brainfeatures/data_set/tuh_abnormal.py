@@ -6,7 +6,7 @@ import re
 from brainfeatures.data_set.abstract_data_set import DataSet
 from brainfeatures.utils.file_util import natural_key, \
     parse_age_and_gender_from_edf_header, \
-    mne_load_signals_and_fs_from_edf, property_in_path, h5_load
+    mne_load_signals_and_fs_from_edf, property_in_path
 from brainfeatures.cleaning.rules import reject_too_long_recording
 
 
@@ -112,18 +112,20 @@ class TuhAbnormal(DataSet):
 
             assert self.target in ["pathological", "age", "gender"], \
                 "unknown target {}".format(self.target)
-            assert self.extension in [".edf", ".npy", ".h5"], \
+            assert self.extension in [".edf", ".h5"], \
                 "unknown file format {}".format(self.extension)
             if self.extension == ".edf":
                 # get pathological status, age and gender for edf file
                 pathological = property_in_path(file_name, "abnormal")
                 age, gender = parse_age_and_gender_from_edf_header(file_name)
             else:
-                df = pd.read_hdf(file_name)
-                pathological = df["pathological"]
-                age = df["age"]
-                gender = df["gender"]
-                self.sfreqs.append(df["sfreq"])
+                info_df = pd.read_hdf(file_name, key="info")
+                assert len(info_df) == 1, "too many rows in info df"
+                info = info_df.iloc[-1].to_dict()
+                pathological = info["pathological"]
+                age = info["age"]
+                gender = info["gender"]
+                self.sfreqs.append(info["sfreq"])
 
             targets = {"pathological": pathological, "age": age, "gender": gender}
             self.targets.append(targets[self.target])
@@ -154,7 +156,10 @@ class TuhAbnormal(DataSet):
                 file_, self.channels, self.ch_name_pattern)
             return signals, sfreq, label
         elif self.extension == ".h5":
-            data = h5_load(file_)
+            data = pd.read_hdf(file_, key="data")
+            x_dim, y_dim = data.shape
+            if x_dim > y_dim:
+                data = data.T
             return data, self.sfreqs[index], label
 
     def __len__(self):
