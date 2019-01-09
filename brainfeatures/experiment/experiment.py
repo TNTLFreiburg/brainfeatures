@@ -319,7 +319,11 @@ class Experiment(object):
     def _run_train_or_eval(self, train_or_eval):
         # TODO: impove this. do not give self as argument
         if self.feature_vector_modifier is not None:
-            self.feature_vector_modifier(self)
+            # self.feature_vector_modifier(self)
+            self.features[train_or_eval], self.feature_labels =\
+                self.feature_vector_modifier(self.data_sets[train_or_eval],
+                                             self.features[train_or_eval],
+                                             self.feature_labels)
             if train_or_eval == "train":
                 self._validate()
             else:
