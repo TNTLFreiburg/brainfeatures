@@ -52,13 +52,13 @@ def generate_features_main():
 
     train_or_eval = "train"
     in_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/clean/full/resampy0.2.1_clipafter/v2.0.0/edf/"+train_or_eval+"/"
-    out_dir = in_dir.replace("clean", "feats/agged")
+    out_dir = in_dir.replace("clean", "feats/unagged")
     max_abs_val = 800
     epoch_duration_s = 6
     window_name = "blackmanharris"
     band_limits = [[0, 2], [2, 4],  [4, 8], [8, 13],
                    [13, 18],  [18, 24], [24, 30], [30, 50]]
-    agg_mode = "median"
+    agg_mode = None
     discrete_wavelet = "db4"
     continuous_wavelet = "morl"
     band_overlap = True
