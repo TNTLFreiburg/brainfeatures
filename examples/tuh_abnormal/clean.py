@@ -41,7 +41,8 @@ def process_one_file(data_set, file_id, in_dir, out_dir, sec_to_cut_start,
         "pathological": pathological,
         "age": age,
         "gender": gender,
-        "n_samples": signals.shape[1]
+        "n_samples": clean_signals.shape[1],
+        "n_samples_raw": signals.shape[1],
     }
     info_df = pd.DataFrame(additional_info, index=[0])
 
