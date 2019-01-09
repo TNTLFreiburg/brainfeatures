@@ -316,6 +316,17 @@ class Experiment(object):
         self.info["eval"] = eval_info
         self.times["final evaluation"] = time.time() - start
 
+    def _run_train_or_eval(self, train_or_eval):
+        # TODO: impove this. do not give self as argument
+        if self.feature_vector_modifier is not None:
+            self.feature_vector_modifier(self)
+            if train_or_eval == "train":
+                self._validate()
+            else:
+                self._final_evaluate()
+            if self.metrics is not None:
+                self._analyze_performance(train_or_eval)
+
     def run(self):
         """
         Run complete experiment.
@@ -341,23 +352,8 @@ class Experiment(object):
             if not do_clean and not do_features:
                 self._load_cleaned_or_features(train_or_eval, "features")
 
-            # if "eval" is set, don't run cv?
-            # and "eval" not in self.data_sets \
-            if train_or_eval == "train" and do_predictions:
-                if self.feature_vector_modifier is not None:
-                    self.feature_vector_modifier(self.features[train_or_eval],
-                                                 self.feature_labels)
-                self._validate()
-                if self.metrics is not None:
-                    self._analyze_performance(train_or_eval)
-
-            elif train_or_eval == "eval" and do_predictions:
-                if self.feature_vector_modifier is not None:
-                    self.feature_vector_modifier(self.features[train_or_eval],
-                                                 self.feature_labels)
-                self._final_evaluate()
-                if self.metrics is not None:
-                    self._analyze_performance(train_or_eval)
+            if do_predictions:
+                self._run_train_or_eval(train_or_eval)
 
         today, now = date.today(), datetime.time(datetime.now())
         logging.info("Finished on {} at {}.".format(today, now))
