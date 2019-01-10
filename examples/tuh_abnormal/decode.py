@@ -19,37 +19,7 @@ def root_mean_squared_error(y_true, y_pred, sample_weight=None, multioutput='uni
 
 
 # TODO: add to cropped features as well
-# def add_meta_feature(exp):
-#     features_to_add = ["age", "gender"]
-#     target = exp.data_sets["train"].target
-#     features_to_add.remove(target)
-#     if "eval" in exp.features:
-#         ds = exp.data_sets["eval"]
-#         ages, genders = ds.ages, ds.genders
-#         if "age" in features_to_add:
-#             exp.features["eval"] = [np.append(fv, age) for fv, age in zip(exp.features["eval"], ages)]
-#         if "gender" in features_to_add:
-#             genders = [0 if gender == "M" else 1 for gender in genders]
-#             exp.features["eval"] = [np.append(fv, gender) for fv, gender in zip(exp.features["eval"], genders)]
-#         # if "pathological" in features_to_add:
-#         #     pathologicals = ds.pathologicals
-#         #     exp.features["eval"] = [np.append(fv, pathological) for fv, pathological in zip(exp.features["eval"], pathologicals)]
-#     else:
-#         ds = exp.data_sets["train"]
-#         ages, genders = ds.ages, ds.genders
-#         if "age" in features_to_add:
-#             exp.features["train"] = [np.append(fv, age) for fv, age in zip(exp.features["train"], ages)]
-#             exp.feature_labels.append("meta_age")
-#         if "gender" in features_to_add:
-#             genders = [0 if gender == "M" else 1 for gender in genders]
-#             exp.features["train"] = [np.append(fv, gender) for fv, gender in zip(exp.features["train"], genders)]
-#             exp.feature_labels.append("meta_gender")
-#         # if "pathological" in features_to_add:
-#         #     pathologicals = ds.pathologicals
-#         #     exp.features["train"] = [np.append(fv, pathological) for fv, pathological in zip(exp.features["train"], pathologicals)]
-
-
-# TODO: add to cropped features as well
+# this should already work. to be tested
 def add_meta_feature(data_set, features, feature_labels):
     genders = data_set.genders
     assert len(np.unique(genders)) == 2
@@ -131,7 +101,7 @@ def run_exp(train_dir, eval_dir, model, n_folds_or_repetitions,
         metrics = [accuracy_score, roc_auc_score]
 
     exp = Experiment(
-        train_set=train_set_feats,
+        devel_set=train_set_feats,
         clf=clf,
         cleaning_procedure=None,
         n_splits_or_repetitions=n_folds_or_repetitions,
