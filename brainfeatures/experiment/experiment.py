@@ -214,13 +214,12 @@ class Experiment(object):
         logging.info("Loading {} ({})".format(train_or_eval,
                                               clean_or_features))
         for (data, sfreq, label) in self.data_sets[train_or_eval]:
-            getattr(self, clean_or_features)[train_or_eval].append(data)
-            self.targets[train_or_eval].append(label)
             if "sfreq" not in self.info[train_or_eval]:
                 self.info[train_or_eval]["sfreq"] = sfreq
-        if hasattr(self.data_sets[train_or_eval], "feature_labels") \
-                and getattr(self.data_sets[train_or_eval], "feature_labels") is not None:
-            self.feature_labels = self.data_sets[train_or_eval].feature_labels
+            if self.feature_labels is None:
+                self.feature_labels = list(data.columns)
+            getattr(self, clean_or_features)[train_or_eval].append(data.as_matrix())
+            self.targets[train_or_eval].append(label)
         self.times.setdefault("loading", {}).update(
             {train_or_eval: time.time() - start})
 
@@ -274,8 +273,8 @@ class Experiment(object):
             self.features["train"], self.targets["train"], self.clf,
             self.n_splits_or_repetitions, self.shuffle_splits, self.scaler,
             self.pca_thresh)
-        self.predictions.update({"train": validation_results["predictions"]})
-        self.info["train"] = info
+        self.predictions.update(validation_results)
+        self.info.update(info)
         self.times["validation"] = time.time() - start
 
     def _analyze_performance(self, train_or_eval):
@@ -317,19 +316,22 @@ class Experiment(object):
         self.times["final evaluation"] = time.time() - start
 
     def _run_train_or_eval(self, train_or_eval):
-        # TODO: impove this. do not give self as argument
+        # TODO: impove this
         if self.feature_vector_modifier is not None:
-            # self.feature_vector_modifier(self)
             self.features[train_or_eval], self.feature_labels =\
                 self.feature_vector_modifier(self.data_sets[train_or_eval],
                                              self.features[train_or_eval],
                                              self.feature_labels)
-            if train_or_eval == "train":
-                self._validate()
-            else:
-                self._final_evaluate()
-            if self.metrics is not None:
-                self._analyze_performance(train_or_eval)
+            assert len(self.features[train_or_eval]) > 0, \
+                "removed all feature vectors"
+            assert self.features[train_or_eval][0].shape[-1] == len(self.feature_labels), \
+                "number of features and feature labels does not match"
+        if train_or_eval == "train":
+            self._validate()
+        else:
+            self._final_evaluate()
+        if self.metrics is not None:
+            self._analyze_performance(train_or_eval)
 
     def run(self):
         """
