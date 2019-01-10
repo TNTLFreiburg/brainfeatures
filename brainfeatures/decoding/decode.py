@@ -27,19 +27,6 @@ def get_X_y(data_set, agg_f=None):
     return X, y
 
 
-def get_train_test(X, y, train_ind, test_ind):
-    """ split data and target wrt given train and test indeces """
-    assert not (set(train_ind) & set(test_ind)), \
-        "train set and test set overlap!"
-    X = np.array(X)
-    y = np.array(y)
-    X_train = X[train_ind]
-    y_train = y[train_ind]
-    X_test = X[test_ind]
-    y_test = y[test_ind]
-    return X_train, y_train, X_test, y_test
-
-
 def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
     """ split cropped data and target wrt given test ind, s.t. no group is
     accidentally split """
@@ -82,8 +69,9 @@ def apply_pca(X_train, X_test, pca_thresh):
     shape_reduced = X_train.shape
     X_test = pca.transform(X_test)
     logging.info("reduced dimensionality from {} to {}"
-                  .format(shape_orig, shape_reduced))
+                 .format(shape_orig, shape_reduced))
     rows = ["PC-{}".format(i) for i in range(len(pca.components_))]
+    # components = pd.DataFrame(pca.components_, columns=X_train.columns, index=rows)
     components = pd.DataFrame(pca.components_, index=rows)
     return X_train, X_test, components
 
@@ -100,7 +88,6 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
         X_train, X_test = apply_scaler(X_train, X_test, scaler)
     if pca_thresh is not None:
         X_train, X_test, pca_components = apply_pca(X_train, X_test, pca_thresh)
-        # TODO: add pca info
     clf = clf.fit(X_train, y_train)
     if hasattr(clf, "feature_importances_"):
         # save random forest feature importances for analysis
@@ -209,7 +196,6 @@ def tune(X, y, clf, random_grid, n_iter, n_splits=5, shuffle_splits=False,
     return res
 
 
-# TODO: add train scores
 def validate(X, y, clf, n_splits, shuffle_splits,
              scaler=StandardScaler(), pca_thresh=None):
     """ do special cross-validation: split data in n_splits, evaluate
@@ -220,22 +206,14 @@ def validate(X, y, clf, n_splits, shuffle_splits,
     all_pca_components = pd.DataFrame()
     info = {}
 
-    # for cropped decoding, X is 3 dim. n_trials x n_epochs x n_features,
-    # where n_epochs per trial varies. group epochs wrt trials, s.t. they
-    # are not separated by cv splitting
-    do_cropped = hasattr(X[0][0], "__len__")
-    if do_cropped:
-        groups = []
-        for trial_i, trial_features in enumerate(X):
-            groups.extend(len(trial_features) * [trial_i])
+    groups = []
+    for trial_i, trial_features in enumerate(X):
+        groups.extend(len(trial_features) * [trial_i])
 
     # when doing cross-validation do not repeat but run folds with different
     # seeds
     kf = KFold(n_splits=n_splits, shuffle=shuffle_splits)
-    if do_cropped:
-        splits = kf.split(np.unique(groups))
-    else:
-        splits = kf.split(X)
+    splits = kf.split(np.unique(groups))
 
     # use yield here?
     for fold_id, (train_ind, test_ind) in enumerate(splits):
@@ -244,14 +222,8 @@ def validate(X, y, clf, n_splits, shuffle_splits,
             clf.random_state = fold_id
             logging.debug("set random state to {}".format(fold_id))
 
-        if do_cropped:
-            X_train, y_train, X_test, y_test, train_groups, test_groups = \
-                get_cropped_train_test(X, y, train_ind, test_ind, groups)
-        else:
-            train_groups = None
-            test_groups = None
-            X_train, y_train, X_test, y_test = get_train_test(
-                X, y, train_ind, test_ind)
+        X_train, y_train, X_test, y_test, train_groups, test_groups = \
+            get_cropped_train_test(X, y, train_ind, test_ind, groups)
 
         predictions_train, predictions, feature_importances, pca_components = \
             decode_once(X_train, X_test, y_train, clf, scaler, pca_thresh)
@@ -289,6 +261,20 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
     done once """
     predictions_by_repetition = pd.DataFrame()
     all_feature_importances = pd.DataFrame()
+    all_pca_components = pd.DataFrame()
+    info = {}
+
+    # how to handle crops here?
+    eval_groups = []
+    for trial_i, trial_features in enumerate(X_eval):
+        eval_groups.extend(len(trial_features) * [trial_i])
+    X_eval, y_eval, _, _, eval_groups, _ = \
+        get_cropped_train_test(X_eval, y_eval, np.arange(len(X_eval)), [], eval_groups)
+    train_groups = []
+    for trial_i, trial_features in enumerate(X):
+        train_groups.extend(len(trial_features) * [trial_i])
+    X, y, _, _, _, _ = get_cropped_train_test(X, y, np.arange(len(X)), [], train_groups)
+
     for repetition_id in range(n_repetitions):
         logging.debug("this is repetition {}".format(repetition_id))
         # if hasattr(clf, "random_state"):
@@ -301,8 +287,12 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
             repetition_id, predictions, y_eval)
         predictions_by_repetition = predictions_by_repetition.append(
             predictions_df)
-        all_feature_importances = all_feature_importances.append(
-            feature_importances, ignore_index=True)
+
+        if all_feature_importances.size > 0:
+            info.update({"feature_importances": all_feature_importances})
+        if all_pca_components.size > 0:
+            info.update({"pca_components": all_pca_components})
+
     return {"eval": predictions_by_repetition}, \
            {"eval": {"feature_importances": all_feature_importances}}
 
