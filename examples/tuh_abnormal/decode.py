@@ -55,8 +55,9 @@ def add_meta_feature(data_set, features, feature_labels):
     assert len(np.unique(genders)) == 2
     assert "F" in genders and "M" in genders
     genders = [0 if gender == "M" else 1 for gender in genders]
+    ages = data_set.ages
     features_to_add = OrderedDict([
-        ("age", data_set.ages),
+        ("age", ages),
         ("gender", genders),
     ])
     target = data_set.target
@@ -64,7 +65,7 @@ def add_meta_feature(data_set, features, feature_labels):
         features_to_add.pop(target)
     for feature in features_to_add:
         for i in range(len(features)):
-            repeated_meta_feature = np.repeat(genders[i], len(features[i]))
+            repeated_meta_feature = np.repeat(features_to_add[feature][i], len(features[i]))
             repeated_meta_feature = repeated_meta_feature.reshape(-1, 1)
             features[i] = np.concatenate((features[i], repeated_meta_feature), axis=1)
         feature_label = "meta_" + feature
