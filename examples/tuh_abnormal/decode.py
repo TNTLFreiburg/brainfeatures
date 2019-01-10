@@ -51,15 +51,22 @@ def root_mean_squared_error(y_true, y_pred, sample_weight=None, multioutput='uni
 
 # TODO: add to cropped features as well
 def add_meta_feature(data_set, features, feature_labels):
+    genders = data_set.genders
+    assert len(np.unique(genders)) == 2
+    assert "F" in genders and "M" in genders
+    genders = [0 if gender == "M" else 1 for gender in genders]
     features_to_add = OrderedDict([
         ("age", data_set.ages),
-        # check if gender is "M" or "F"?
-        ("gender", [0 if gender == "M" else 1 for gender in data_set.genders]),
-        # ("pathological", data_set.pathologicals)
+        ("gender", genders),
     ])
-    features_to_add.pop(data_set.target)
+    target = data_set.target
+    if target in features_to_add:
+        features_to_add.pop(target)
     for feature in features_to_add:
-        features = [np.append(fv, feature_to_add) for fv, feature_to_add in zip(features, features_to_add[feature])]
+        for i in range(len(features)):
+            repeated_meta_feature = np.repeat(genders[i], len(features[i]))
+            repeated_meta_feature = repeated_meta_feature.reshape(-1, 1)
+            features[i] = np.concatenate((features[i], repeated_meta_feature), axis=1)
         feature_label = "meta_" + feature
         if feature_label not in feature_labels[::-1]:
             feature_labels.append(feature_label)
