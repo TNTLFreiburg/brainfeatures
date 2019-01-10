@@ -50,7 +50,7 @@ def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
     unique_test_groups = np.array(unique_groups)[test_ind]
     assert len(unique_groups) == len(X)
 
-    test_groups = []
+    train_groups, test_groups = [], []
     X_train, y_train, X_test, y_test = [], [], [], []
     for trial_i in range(len(X)):
         if trial_i in unique_test_groups:
@@ -60,9 +60,10 @@ def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
         else:
             X_train.extend(X[trial_i])
             y_train.extend([y[trial_i]] * len(X[trial_i]))
+            train_groups.extend([trial_i] * len(X[trial_i]))
     X_test = np.array(X_test)
     X_train = np.array(X_train)
-    return X_train, y_train, X_test, y_test, test_groups
+    return X_train, y_train, X_test, y_test, train_groups, test_groups
 
 
 def apply_scaler(X_train, X_test, scaler=StandardScaler()):
@@ -216,6 +217,7 @@ def validate(X, y, clf, n_splits, shuffle_splits,
     """ do special cross-validation: split data in n_splits, evaluate
      model on every test fold using a different seed (=fold_id)"""
     predictions_by_fold = pd.DataFrame()
+    train_predictions_by_fold = pd.DataFrame()
     info_by_fold = []
 
     # for cropped decoding, X is 3 dim. n_trials x n_epochs x n_features,
@@ -243,9 +245,10 @@ def validate(X, y, clf, n_splits, shuffle_splits,
             logging.debug("set random state to {}".format(fold_id))
 
         if do_cropped:
-            X_train, y_train, X_test, y_test, test_groups = \
+            X_train, y_train, X_test, y_test, train_groups, test_groups = \
                 get_cropped_train_test(X, y, train_ind, test_ind, groups)
         else:
+            train_groups = None
             test_groups = None
             X_train, y_train, X_test, y_test = get_train_test(
                 X, y, train_ind, test_ind)
@@ -253,12 +256,15 @@ def validate(X, y, clf, n_splits, shuffle_splits,
             X_train, X_test, y_train, clf, scaler, pca_thresh)
         predictions_df = create_df_from_predictions(fold_id, predictions,
                                                     y_test, test_groups)
+        train_predictions_df = create_df_from_predictions(
+            fold_id, predictions_train, y_train, train_groups)
         predictions_by_fold = predictions_by_fold.append(predictions_df)
+        train_predictions_by_fold = train_predictions_by_fold.append(
+            train_predictions_df)
         info_by_fold.append(info)
-    return {"train": predictions_by_fold,
-            # "train": predictions_by_fold
-            }, \
-           {"train": info_by_fold}
+    return {"valid": predictions_by_fold,
+            "train": train_predictions_by_fold}, \
+           {"valid": info_by_fold}
 
 
 # TODO: set random state to sth random and not repetition id?
@@ -281,7 +287,7 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
         predictions_by_repetition = predictions_by_repetition.append(
             predictions_df)
         info_by_repetition = info_by_repetition.append(pd.DataFrame.from_dict(info))
-    return {"predictions": predictions_by_repetition}, info_by_repetition
+    return {"eval": predictions_by_repetition}, {"eval": info_by_repetition}
 
 
 def decode(train_set, clf, n_splits_or_repetitions, shuffle_splits,
