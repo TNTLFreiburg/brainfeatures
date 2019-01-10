@@ -19,6 +19,7 @@ from brainfeatures.decoding.decode import validate, final_evaluate
 # TODO: move agg mode out of feature generators to experiment? -> moves a lot of data around
 # TODO: free memory? how much memory is needed?
 # TODO: split devel into train/test before cleaning/feature generation?
+# TODO: prune variables visible for user?
 
 
 class Experiment(object):
@@ -84,25 +85,25 @@ class Experiment(object):
                  pca_thresh: float=None, scaler=StandardScaler(),
                  feature_vector_modifier: callable=None, verbosity: str="INFO"):
 
-        self.data_sets = OrderedDict([("devel", devel_set), ("eval", eval_set)])
-        self.feature_generation_procedure = feature_generation_procedure
-        self.feature_generation_params = feature_generation_params
-        self.n_splits_or_repetitions = n_splits_or_repetitions
-        self.cleaning_procedure = cleaning_procedure
-        self.cleaning_params = cleaning_params
-        self.shuffle_splits = shuffle_splits
-        self.pca_thresh = pca_thresh
-        self.verbosity = verbosity
-        self.metrics = metrics
-        self.n_jobs = n_jobs
-        self.scaler = scaler
-        self.clf = clf
+        self._data_sets = OrderedDict([("devel", devel_set), ("eval", eval_set)])
+        self._feature_generation_procedure = feature_generation_procedure
+        self._feature_generation_params = feature_generation_params
+        self._n_splits_or_repetitions = n_splits_or_repetitions
+        self._cleaning_procedure = cleaning_procedure
+        self._cleaning_params = cleaning_params
+        self._shuffle_splits = shuffle_splits
+        self._pca_thresh = pca_thresh
+        self._verbosity = verbosity
+        self._metrics = metrics
+        self._n_jobs = n_jobs
+        self._scaler = scaler
+        self._clf = clf
 
         self.features = {"devel": [], "eval": []}
-        self.targets = {"devel": [], "eval": []}
+        # self.targets = {"devel": [], "eval": []}
         self.clean = {"devel": [], "eval": []}
         self.info = {"devel": {}, "eval": {}}
-        self.feature_vector_modifier = feature_vector_modifier
+        self._feature_vector_modifier = feature_vector_modifier
         self.feature_labels = None
         self.performances = {}
         self.predictions = {}
@@ -112,63 +113,63 @@ class Experiment(object):
         """
         Assure conformity of given arguments.
         """
-        assert not (self.cleaning_procedure is None
-                    and self.feature_generation_procedure is None
-                    and self.clf is None), "please specify what to do"
-        assert self.verbosity in ["DEBUG", "INFO", "WARNING", "ERROR",
-                                  0, 10, 20, 30, 40], "unknown verbosity level"
-        if self.feature_generation_procedure is not None:
-            assert hasattr(self.feature_generation_procedure, "__call__"), \
+        assert not (self._cleaning_procedure is None
+                    and self._feature_generation_procedure is None
+                    and self._clf is None), "please specify what to do"
+        assert self._verbosity in ["DEBUG", "INFO", "WARNING", "ERROR",
+                                   0, 10, 20, 30, 40], "unknown verbosity level"
+        if self._feature_generation_procedure is not None:
+            assert hasattr(self._feature_generation_procedure, "__call__"), \
                 "feature_generation_procedure has to be a callable"
-        if self.cleaning_procedure is not None:
-            assert hasattr(self.cleaning_procedure, "__call__"), \
+        if self._cleaning_procedure is not None:
+            assert hasattr(self._cleaning_procedure, "__call__"), \
                 "cleaning_procedure has to be a callable"
-        if self.cleaning_params is not None:
-            assert type(self.cleaning_params) is dict, \
+        if self._cleaning_params is not None:
+            assert type(self._cleaning_params) is dict, \
                 "cleaning_params has to be a dictionary"
-        if self.feature_generation_params is not None:
-            assert type(self.feature_generation_params) is dict, \
+        if self._feature_generation_params is not None:
+            assert type(self._feature_generation_params) is dict, \
                 "feature_generation_params has to be a dictionary"
-        assert len(self.data_sets["devel"][0]) == 3, \
+        assert len(self._data_sets["devel"][0]) == 3, \
             "__getitem__ of data set needs to return x, fs, y"
-        assert self.shuffle_splits in [True, False], \
+        assert self._shuffle_splits in [True, False], \
             "shuffle_splits has to be boolean"
-        assert type(self.n_splits_or_repetitions) is int and \
-            self.n_splits_or_repetitions > 0, \
+        assert type(self._n_splits_or_repetitions) is int and \
+            self._n_splits_or_repetitions > 0, \
             "n_repetitions has to be an integer larger than 0"
-        if self.data_sets["eval"] is None:
-            assert self.n_splits_or_repetitions >= 2, \
+        if self._data_sets["eval"] is None:
+            assert self._n_splits_or_repetitions >= 2, \
                 "need at least two splits for cv"
-        assert type(self.n_jobs) is int and self.n_jobs >= -1, \
+        assert type(self._n_jobs) is int and self._n_jobs >= -1, \
             "n_jobs has to be an integer larger or equal to -1"
-        if self.feature_vector_modifier is not None:
-            assert callable(self.feature_vector_modifier), \
+        if self._feature_vector_modifier is not None:
+            assert callable(self._feature_vector_modifier), \
                 "modifier has to be a callable"
-        if hasattr(self.clf, "n_jobs"):
-            self.clf.n_jobs = self.n_jobs
-        if self.metrics is not None and not hasattr(self.metrics, "__len__"):
-            self.metrics = [self.metrics]
-        if self.scaler is not None:
+        if hasattr(self._clf, "n_jobs"):
+            self._clf.n_jobs = self._n_jobs
+        if self._metrics is not None and not hasattr(self._metrics, "__len__"):
+            self._metrics = [self._metrics]
+        if self._scaler is not None:
             scaling_functions = ["fit_transform", "transform"]
             for scaling_function in scaling_functions:
-                assert hasattr(self.scaler, scaling_function), \
+                assert hasattr(self._scaler, scaling_function), \
                     "scaler is not following scikit-learn api ({})" \
                     .format(scaling_function)
-        if self.clf is not None:
+        if self._clf is not None:
             decoding_functions = ["fit", "predict"]
             for decoding_function in decoding_functions:
-                assert hasattr(self.clf, decoding_function), \
+                assert hasattr(self._clf, decoding_function), \
                     "classifier is not following scikit-learn api ({})"\
                     .format(decoding_function)
-        if self.pca_thresh:
-            assert type(self.pca_thresh) in [int, float], \
+        if self._pca_thresh:
+            assert type(self._pca_thresh) in [int, float], \
                 "pca_thresh has to be either int or float"
-            if self.scaler is None:
+            if self._scaler is None:
                 logging.warning("using pca on unscaled features")
-        if "eval" in self.data_sets and self.data_sets["eval"] is None:
-            self.data_sets.pop("eval")
+        if "eval" in self._data_sets and self._data_sets["eval"] is None:
+            self._data_sets.pop("eval")
             self.features.pop("eval")
-            self.targets.pop("eval")
+            # self.targets.pop("eval")
             self.clean.pop("eval")
             self.info.pop("eval")
 
@@ -184,18 +185,18 @@ class Experiment(object):
         """
         start = time.time()
         logging.info("Making clean ({})".format(devel_or_eval))
-        if self.cleaning_params is not None:
+        if self._cleaning_params is not None:
             self.cleaning_procedure = partial(self.cleaning_procedure,
-                                              **self.cleaning_params)
-        cleaned_signals_and_sfreq = Parallel(n_jobs=self.n_jobs)\
+                                              **self._cleaning_params)
+        cleaned_signals_and_sfreq = Parallel(n_jobs=self._n_jobs)\
             (delayed(self.cleaning_procedure)(example, sfreq)
-             for (example, sfreq, label) in self.data_sets[devel_or_eval])
+                for (example, sfreq, label) in self._data_sets[devel_or_eval])
         # not nice, iterating twice
         for (cleaned_signals, sfreq) in cleaned_signals_and_sfreq:
             if "sfreq" not in self.info[devel_or_eval]:
                 self.info[devel_or_eval]["sfreq"] = sfreq
             self.clean[devel_or_eval].append(cleaned_signals)
-        self.targets[devel_or_eval] = self.data_sets[devel_or_eval].targets
+        # self.targets[devel_or_eval] = self._data_sets[devel_or_eval].targets
         self.times.setdefault("cleaning", {}).update(
             {devel_or_eval: time.time() - start})
 
@@ -214,13 +215,13 @@ class Experiment(object):
         start = time.time()
         logging.info("Loading {} ({})".format(devel_or_eval,
                                               clean_or_features))
-        for (data, sfreq, label) in self.data_sets[devel_or_eval]:
+        for (data, sfreq, label) in self._data_sets[devel_or_eval]:
             if "sfreq" not in self.info[devel_or_eval]:
                 self.info[devel_or_eval]["sfreq"] = sfreq
             if self.feature_labels is None:
                 self.feature_labels = list(data.columns)
-            getattr(self, clean_or_features)[devel_or_eval].append(data.as_matrix())
-            self.targets[devel_or_eval].append(label)
+            getattr(self, clean_or_features)[devel_or_eval].append(data)
+            # self.targets[devel_or_eval].append(label)
         self.times.setdefault("loading", {}).update(
             {devel_or_eval: time.time() - start})
 
@@ -236,15 +237,15 @@ class Experiment(object):
         """
         start = time.time()
         logging.info("Generating features ({})".format(devel_or_eval))
-        if self.feature_generation_params is not None:
+        if self._feature_generation_params is not None:
             self.feature_generation_procedure = partial(
                 self.feature_generation_procedure,
-                **self.feature_generation_params)
+                **self._feature_generation_params)
 
-        feature_vectors = Parallel(n_jobs=self.n_jobs)\
+        feature_vectors = Parallel(n_jobs=self._n_jobs)\
             (delayed(self.feature_generation_procedure)
-             (example, self.info[devel_or_eval]["sfreq"])
-             for example in self.clean[devel_or_eval])
+                (example, self.info[devel_or_eval]["sfreq"])
+                for example in self.clean[devel_or_eval])
 
         for i, feature_vector in enumerate(feature_vectors):
             if feature_vector is not None:
@@ -254,10 +255,11 @@ class Experiment(object):
             # important: if feature generation fails, and therefore feature
             # vector is None remove according label!
             else:
-                del self.targets[devel_or_eval][i]
+                del self._data_sets[devel_or_eval].targets[i]
+                # del self.targets[devel_or_eval][i]
                 logging.warning("removed example {} from labels".format(i))
         assert len(self.features[devel_or_eval]) == \
-            len(self.targets[devel_or_eval]), \
+            len(self._data_sets[devel_or_eval].targets), \
             "number of feature vectors does not match number of labels"
         self.times.setdefault("feature generation", {}).update(
             {devel_or_eval: time.time() - start})
@@ -268,12 +270,12 @@ class Experiment(object):
         """
         start = time.time()
         logging.info("Making predictions (validation)")
-        assert len(self.features["devel"]) == len(self.targets["devel"]), \
+        assert len(self.features["devel"]) == len(self._data_sets["devel"].targets), \
             "number of devel examples and labels differs!"
         validation_results, info = validate(
-            self.features["devel"], self.targets["devel"], self.clf,
-            self.n_splits_or_repetitions, self.shuffle_splits, self.scaler,
-            self.pca_thresh)
+            self.features["devel"], self._data_sets["devel"].targets, self._clf,
+            self._n_splits_or_repetitions, self._shuffle_splits, self._scaler,
+            self._pca_thresh)
         self.predictions.update(validation_results)
         if "pca_components" in info["valid"]:
             info["valid"]["pca_components"].columns = self.feature_labels + ["id"]
@@ -302,7 +304,7 @@ class Experiment(object):
             if train_or_devel == "devel":
                 train_or_devel = "valid"
             performances = analyze_quality_of_predictions(
-                self.predictions[train_or_devel], self.metrics)
+                self.predictions[train_or_devel], self._metrics)
             self.performances.update({train_or_devel: performances})
             logging.info("Achieved in average\n{}\n on {} set.".format(
                 self.performances[train_or_devel].mean().to_string(), train_or_devel))
@@ -313,23 +315,23 @@ class Experiment(object):
         """
         start = time.time()
         logging.info("Making predictions (final evaluation)")
-        assert len(self.features["eval"]) == len(self.targets["eval"]), \
+        assert len(self.features["eval"]) == len(self._data_sets["eval"].targets), \
             "number of eval examples and labels differs!"
         evaluation_results, eval_info = final_evaluate(
-            self.features["devel"], self.targets["devel"], self.features["eval"],
-            self.targets["eval"], self.clf, self.n_splits_or_repetitions,
-            self.scaler, self.pca_thresh)
+            self.features["devel"], self._data_sets["devel"].targets, self.features["eval"],
+            self._data_sets["eval"].targets, self._clf, self._n_splits_or_repetitions,
+            self._scaler, self._pca_thresh)
         self.predictions.update(evaluation_results)
         self.info.update(eval_info)
         self.times["final evaluation"] = time.time() - start
 
     def _run_valid_or_eval(self, devel_or_eval):
         # TODELAY: impove feature vector modifier
-        if self.feature_vector_modifier is not None:
+        if self._feature_vector_modifier is not None:
             self.features[devel_or_eval], self.feature_labels =\
-                self.feature_vector_modifier(self.data_sets[devel_or_eval],
-                                             self.features[devel_or_eval],
-                                             self.feature_labels)
+                self._feature_vector_modifier(self._data_sets[devel_or_eval],
+                                              self.features[devel_or_eval],
+                                              self.feature_labels)
             assert len(self.features[devel_or_eval]) > 0, \
                 "removed all feature vectors"
             assert self.features[devel_or_eval][0].shape[-1] == len(self.feature_labels), \
@@ -338,7 +340,7 @@ class Experiment(object):
             self._validate()
         else:
             self._final_evaluate()
-        if self.metrics is not None:
+        if self._metrics is not None:
             self._analyze_performance(devel_or_eval)
 
     def run(self):
@@ -351,10 +353,10 @@ class Experiment(object):
         logging.info('Started on {} at {}'.format(today, now))
 
         self._run_checks()
-        do_clean = self.cleaning_procedure is not None
-        do_features = self.feature_generation_procedure is not None
-        do_predictions = (self.clf is not None and self.features["devel"])
-        for devel_or_eval in self.data_sets.keys():
+        do_clean = self._cleaning_procedure is not None
+        do_features = self._feature_generation_procedure is not None
+        do_predictions = (self._clf is not None and self.features["devel"])
+        for devel_or_eval in self._data_sets.keys():
             if do_clean:
                 self._clean(devel_or_eval)
 
