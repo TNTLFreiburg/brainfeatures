@@ -18,12 +18,12 @@ from brainfeatures.decoding.decode import validate, final_evaluate
 
 # TODO: move agg mode out of feature generators to experiment? -> moves a lot of data around
 # TODO: free memory? how much memory is needed?
-# TODO: split train into train/test before cleaning/feature generation?
+# TODO: split devel into train/test before cleaning/feature generation?
 
 
 class Experiment(object):
     """
-    Class that performs one feature-based experiment on training (and
+    Class that performs one feature-based experiment on development (and
     evaluation) set.
 
     It is structured as follows:
@@ -40,7 +40,7 @@ class Experiment(object):
 
     Parameters
     ----------
-    train_set: :class:`.DataSet`
+    devel_set: :class:`.DataSet`
         with __len__ and __getitem__ returning (example, sfreq, label),
     clf:  object, optional
         a classifier following scikit-learn api
@@ -75,15 +75,15 @@ class Experiment(object):
     verbosity: str, optional
         verbosity level
     """
-    def __init__(self, train_set, clf=RandomForestClassifier(n_estimators=100),
-                 metrics=accuracy_score, eval_set=None, n_jobs=1,
-                 cleaning_procedure=None, cleaning_params=None,
-                 feature_generation_procedure=generate_features_of_one_file,
-                 feature_generation_params=default_feature_generation_params,
-                 n_splits_or_repetitions=5, shuffle_splits=False,
-                 pca_thresh=None, scaler=StandardScaler(),
-                 feature_vector_modifier=None, verbosity="INFO"):
-        self.data_sets = OrderedDict([("train", train_set), ("eval", eval_set)])
+    def __init__(self, devel_set, clf=RandomForestClassifier(n_estimators=100),
+                 metrics=accuracy_score, eval_set=None, n_jobs: int=1,
+                 cleaning_procedure: callable=None, cleaning_params: dict=None,
+                 feature_generation_procedure: callable=generate_features_of_one_file,
+                 feature_generation_params: dict=default_feature_generation_params,
+                 n_splits_or_repetitions: int=5, shuffle_splits: bool=False,
+                 pca_thresh: float=None, scaler=StandardScaler(),
+                 feature_vector_modifier: callable=None, verbosity: str="INFO"):
+        self.data_sets = OrderedDict([("devel", devel_set), ("eval", eval_set)])
         self.feature_generation_procedure = feature_generation_procedure
         self.feature_generation_params = feature_generation_params
         self.n_splits_or_repetitions = n_splits_or_repetitions
@@ -97,10 +97,10 @@ class Experiment(object):
         self.scaler = scaler
         self.clf = clf
 
-        self.features = {"train": [], "eval": []}
-        self.targets = {"train": [], "eval": []}
-        self.clean = {"train": [], "eval": []}
-        self.info = {"train": {}, "eval": {}}
+        self.features = {"devel": [], "eval": []}
+        self.targets = {"devel": [], "eval": []}
+        self.clean = {"devel": [], "eval": []}
+        self.info = {"devel": {}, "eval": {}}
         self.feature_vector_modifier = feature_vector_modifier
         self.feature_labels = None
         self.performances = {}
@@ -128,7 +128,7 @@ class Experiment(object):
         if self.feature_generation_params is not None:
             assert type(self.feature_generation_params) is dict, \
                 "feature_generation_params has to be a dictionary"
-        assert len(self.data_sets["train"][0]) == 3, \
+        assert len(self.data_sets["devel"][0]) == 3, \
             "__getitem__ of data set needs to return x, fs, y"
         assert self.shuffle_splits in [True, False], \
             "shuffle_splits has to be boolean"
@@ -171,70 +171,70 @@ class Experiment(object):
             self.clean.pop("eval")
             self.info.pop("eval")
 
-    def _clean(self, train_or_eval):
+    def _clean(self, devel_or_eval):
         """
         Apply given cleaning rules to all examples in data set specified by
-        train_or_eval.
+        devel_or_eval.
 
         Parameters
         ----------
-        train_or_eval: str
-            either "train" or "eval"
+        devel_or_eval: str
+            either "devel" or "eval"
         """
         start = time.time()
-        logging.info("Making clean ({})".format(train_or_eval))
+        logging.info("Making clean ({})".format(devel_or_eval))
         if self.cleaning_params is not None:
             self.cleaning_procedure = partial(self.cleaning_procedure,
                                               **self.cleaning_params)
         cleaned_signals_and_sfreq = Parallel(n_jobs=self.n_jobs)\
             (delayed(self.cleaning_procedure)(example, sfreq)
-             for (example, sfreq, label) in self.data_sets[train_or_eval])
+             for (example, sfreq, label) in self.data_sets[devel_or_eval])
         # not nice, iterating twice
         for (cleaned_signals, sfreq) in cleaned_signals_and_sfreq:
-            if "sfreq" not in self.info[train_or_eval]:
-                self.info[train_or_eval]["sfreq"] = sfreq
-            self.clean[train_or_eval].append(cleaned_signals)
-        self.targets[train_or_eval] = self.data_sets[train_or_eval].targets
+            if "sfreq" not in self.info[devel_or_eval]:
+                self.info[devel_or_eval]["sfreq"] = sfreq
+            self.clean[devel_or_eval].append(cleaned_signals)
+        self.targets[devel_or_eval] = self.data_sets[devel_or_eval].targets
         self.times.setdefault("cleaning", {}).update(
-            {train_or_eval: time.time() - start})
+            {devel_or_eval: time.time() - start})
 
-    def _load_cleaned_or_features(self, train_or_eval, clean_or_features):
+    def _load_cleaned_or_features(self, devel_or_eval, clean_or_features):
         """
         Load cleaned signals or features from data set specified by
-        train_or_eval.
+        devel_or_eval.
 
         Parameters
         ----------
-        train_or_eval: str
-            either "train" or "eval"
+        devel_or_eval: str
+            either "devel" or "eval"
         clean_or_features: str
             either "clean" or "features"
         """
         start = time.time()
-        logging.info("Loading {} ({})".format(train_or_eval,
+        logging.info("Loading {} ({})".format(devel_or_eval,
                                               clean_or_features))
-        for (data, sfreq, label) in self.data_sets[train_or_eval]:
-            if "sfreq" not in self.info[train_or_eval]:
-                self.info[train_or_eval]["sfreq"] = sfreq
+        for (data, sfreq, label) in self.data_sets[devel_or_eval]:
+            if "sfreq" not in self.info[devel_or_eval]:
+                self.info[devel_or_eval]["sfreq"] = sfreq
             if self.feature_labels is None:
                 self.feature_labels = list(data.columns)
-            getattr(self, clean_or_features)[train_or_eval].append(data.as_matrix())
-            self.targets[train_or_eval].append(label)
+            getattr(self, clean_or_features)[devel_or_eval].append(data.as_matrix())
+            self.targets[devel_or_eval].append(label)
         self.times.setdefault("loading", {}).update(
-            {train_or_eval: time.time() - start})
+            {devel_or_eval: time.time() - start})
 
-    def _generate_features(self, train_or_eval):
+    def _generate_features(self, devel_or_eval):
         """
         Apply given feature generation procedure to all examples in data set
-        specified by train_or_eval.
+        specified by devel_or_eval.
 
         Parameters
         ----------
-        train_or_eval: str
-            either "train" or "eval"
+        devel_or_eval: str
+            either "devel" or "eval"
         """
         start = time.time()
-        logging.info("Generating features ({})".format(train_or_eval))
+        logging.info("Generating features ({})".format(devel_or_eval))
         if self.feature_generation_params is not None:
             self.feature_generation_procedure = partial(
                 self.feature_generation_procedure,
@@ -242,96 +242,99 @@ class Experiment(object):
 
         feature_vectors = Parallel(n_jobs=self.n_jobs)\
             (delayed(self.feature_generation_procedure)
-             (example, self.info[train_or_eval]["sfreq"])
-             for example in self.clean[train_or_eval])
+             (example, self.info[devel_or_eval]["sfreq"])
+             for example in self.clean[devel_or_eval])
 
         for i, feature_vector in enumerate(feature_vectors):
             if feature_vector is not None:
                 if self.feature_labels is None:
                     self.feature_labels = list(feature_vector.columns)
-                self.features[train_or_eval].append(feature_vector.values)
+                self.features[devel_or_eval].append(feature_vector.values)
             # important: if feature generation fails, and therefore feature
             # vector is None remove according label!
             else:
-                del self.targets[train_or_eval][i]
+                del self.targets[devel_or_eval][i]
                 logging.warning("removed example {} from labels".format(i))
-        assert len(self.features[train_or_eval]) == \
-               len(self.targets[train_or_eval]), \
+        assert len(self.features[devel_or_eval]) == \
+            len(self.targets[devel_or_eval]), \
             "number of feature vectors does not match number of labels"
         self.times.setdefault("feature generation", {}).update(
-            {train_or_eval: time.time() - start})
+            {devel_or_eval: time.time() - start})
 
     def _validate(self):
         """
-        Perform (cross-)validation on training set.
+        Perform (cross-)validation on development set.
         """
         start = time.time()
         logging.info("Making predictions (validation)")
-        assert len(self.features["train"]) == len(self.targets["train"]), \
-            "number of train examples and labels differs!"
+        assert len(self.features["devel"]) == len(self.targets["devel"]), \
+            "number of devel examples and labels differs!"
         validation_results, info = validate(
-            self.features["train"], self.targets["train"], self.clf,
+            self.features["devel"], self.targets["devel"], self.clf,
             self.n_splits_or_repetitions, self.shuffle_splits, self.scaler,
             self.pca_thresh)
         self.predictions.update(validation_results)
         self.info.update(info)
         self.times["validation"] = time.time() - start
 
-    def _analyze_performance(self, train_or_eval):
+    def _analyze_performance(self, devel_or_eval):
         """
         Apply specified metrics on predictions on data set specified by
-        train_or_eval.
+        devel_or_eval.
 
         Parameters
         ----------
-        train_or_eval: str
-            either "train" or "eval"
+        devel_or_eval: str
+            either "devel" or "eval"
         """
-        if train_or_eval == "train":
+        if devel_or_eval == "devel":
             valid_or_final_evaluation = "validation"
         else:
             valid_or_final_evaluation = "final evaluation"
         logging.info("Computing performances ({})".format(
             valid_or_final_evaluation))
-        performances = analyze_quality_of_predictions(
-            self.predictions[train_or_eval], self.metrics)
-        self.performances.update({train_or_eval: performances})
-        logging.info("Achieved in average\n{}\n".format(
-            self.performances[train_or_eval].mean().to_string()))
+        for train_or_devel in ["train", "devel"]:
+            if train_or_devel == "devel":
+                train_or_devel = "valid"
+            performances = analyze_quality_of_predictions(
+                self.predictions[train_or_devel], self.metrics)
+            self.performances.update({train_or_devel: performances})
+            logging.info("Achieved in average\n{}\n on {} set.".format(
+                self.performances[train_or_devel].mean().to_string(), train_or_devel))
 
     def _final_evaluate(self):
         """
-        Perform final evaluation on training and final evaluation set.
+        Perform final evaluation on development and final evaluation set.
         """
         start = time.time()
         logging.info("Making predictions (final evaluation)")
         assert len(self.features["eval"]) == len(self.targets["eval"]), \
             "number of eval examples and labels differs!"
         evaluation_results, eval_info = final_evaluate(
-            self.features["train"], self.targets["train"], self.features["eval"],
+            self.features["devel"], self.targets["devel"], self.features["eval"],
             self.targets["eval"], self.clf, self.n_splits_or_repetitions,
             self.scaler, self.pca_thresh)
-        self.predictions.update({"eval": evaluation_results["predictions"]})
-        self.info["eval"] = eval_info
+        self.predictions.update(evaluation_results)
+        self.info.update(eval_info)
         self.times["final evaluation"] = time.time() - start
 
-    def _run_train_or_eval(self, train_or_eval):
-        # TODO: impove this
+    def _run_valid_or_eval(self, devel_or_eval):
+        # TODELAY: impove feature vector modifier
         if self.feature_vector_modifier is not None:
-            self.features[train_or_eval], self.feature_labels =\
-                self.feature_vector_modifier(self.data_sets[train_or_eval],
-                                             self.features[train_or_eval],
+            self.features[devel_or_eval], self.feature_labels =\
+                self.feature_vector_modifier(self.data_sets[devel_or_eval],
+                                             self.features[devel_or_eval],
                                              self.feature_labels)
-            assert len(self.features[train_or_eval]) > 0, \
+            assert len(self.features[devel_or_eval]) > 0, \
                 "removed all feature vectors"
-            assert self.features[train_or_eval][0].shape[-1] == len(self.feature_labels), \
+            assert self.features[devel_or_eval][0].shape[-1] == len(self.feature_labels), \
                 "number of features and feature labels does not match"
-        if train_or_eval == "train":
+        if devel_or_eval == "devel":
             self._validate()
         else:
             self._final_evaluate()
         if self.metrics is not None:
-            self._analyze_performance(train_or_eval)
+            self._analyze_performance(devel_or_eval)
 
     def run(self):
         """
@@ -345,21 +348,21 @@ class Experiment(object):
         self._run_checks()
         do_clean = self.cleaning_procedure is not None
         do_features = self.feature_generation_procedure is not None
-        do_predictions = (self.clf is not None and self.features["train"])
-        for train_or_eval in self.data_sets.keys():
+        do_predictions = (self.clf is not None and self.features["devel"])
+        for devel_or_eval in self.data_sets.keys():
             if do_clean:
-                self._clean(train_or_eval)
+                self._clean(devel_or_eval)
 
             if do_features:
                 if not do_clean:
-                    self._load_cleaned_or_features(train_or_eval, "clean")
-                self._generate_features(train_or_eval)
+                    self._load_cleaned_or_features(devel_or_eval, "clean")
+                self._generate_features(devel_or_eval)
 
             if not do_clean and not do_features:
-                self._load_cleaned_or_features(train_or_eval, "features")
+                self._load_cleaned_or_features(devel_or_eval, "features")
 
             if do_predictions:
-                self._run_train_or_eval(train_or_eval)
+                self._run_valid_or_eval(devel_or_eval)
 
         today, now = date.today(), datetime.time(datetime.now())
         logging.info("Finished on {} at {}.".format(today, now))
@@ -371,13 +374,13 @@ class Experiment(object):
         """
         # do we make analysis on eval set? seems wrong
         # always analyze correlation of features
-        analyze_feature_correlations(self.features["train"],
+        analyze_feature_correlations(self.features["devel"],
                                      self.feature_labels,
                                      out_dir)
 
         # if using random forest (default), analyze its feature_importances
         feature_importances = []
-        for info in self.info["train"]:
+        for info in self.info["devel"]:
             if "clf" in info and hasattr(info["clf"], "feature_importances_"):
                 feature_importances.append(
                     getattr(info["clf"], "feature_importances_"))
@@ -390,7 +393,7 @@ class Experiment(object):
 
         # if pca was used, analyze the components
         pca_components = []
-        for info in self.info["train"]:
+        for info in self.info["devel"]:
             if "pca" in info:
                 pca_components.append(getattr(info["pca"], "components_"))
 
