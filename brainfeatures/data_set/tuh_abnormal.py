@@ -50,6 +50,7 @@ def _read_all_file_names(path, extension, key="time"):
     return file_names
 
 
+# TODO: make it have X and y?
 class TuhAbnormal(DataSet):
     """tuh abnormal data set. file names are given as"""
     # v2.0.0/edf/eval/abnormal/01_tcp_ar/007/00000768/s003_2012_04_06/00000768_s003_t000.edf
