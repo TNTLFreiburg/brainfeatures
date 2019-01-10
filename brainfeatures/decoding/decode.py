@@ -73,20 +73,19 @@ def apply_scaler(X_train, X_test, scaler=StandardScaler()):
     return X_train, X_test
 
 
-def apply_pca(X_train, X_test, pca_thresh, return_pca=True):
+def apply_pca(X_train, X_test, pca_thresh):
     """ apply principal component analysis to reduce dimensionality of feature
     vectors"""
     pca = PCA(n_components=pca_thresh)
     shape_orig = X_train.shape
     X_train = pca.fit_transform(X_train)
-    shape_reduc = X_train.shape
+    shape_reduced = X_train.shape
     X_test = pca.transform(X_test)
-    logging.debug("reduced dimensionality from {} to {}"
-                 .format(shape_orig, shape_reduc))
-    if return_pca:
-        return X_train, X_test, {"pca": pca}
-    else:
-        return X_train, X_test
+    logging.info("reduced dimensionality from {} to {}"
+                  .format(shape_orig, shape_reduced))
+    rows = ["PC-{}".format(i) for i in range(len(pca.components_))]
+    components = pd.DataFrame(pca.components_, index=rows)
+    return X_train, X_test, components
 
 
 def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
@@ -96,16 +95,16 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
     logging.debug("{} examples in train set, {} examples in test set".format(
         len(X_train), len(X_test)))
 
-    info = {}
+    feature_importances, pca_components = None, None
     if scaler is not None:
         X_train, X_test = apply_scaler(X_train, X_test, scaler)
     if pca_thresh is not None:
-        X_train, X_test, pca_info = apply_pca(X_train, X_test, pca_thresh)
-        info.update(pca_info)
+        X_train, X_test, pca_components = apply_pca(X_train, X_test, pca_thresh)
+        # TODO: add pca info
     clf = clf.fit(X_train, y_train)
     if hasattr(clf, "feature_importances_"):
         # save random forest feature importances for analysis
-        info.update({"feature_importances": clf.feature_importances_})
+        feature_importances = pd.DataFrame([clf.feature_importances_])
         # TODO: use rfpimp package to get more reliable feature importances
         # print("now doing rfpimp importances")
         # rfpimp_importances = rfpimp.permutation_importances(
@@ -126,19 +125,18 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
         # create labels
         y_hat = clf.predict(X_test)
         y_hat_train = clf.predict(X_train)
-    return y_hat_train, y_hat, info
+    return y_hat_train, y_hat, feature_importances, pca_components
 
 
 def create_df_from_predictions(id_, predictions, y_true, groups=None):
     """ create a pandas data frame from predictions and labels to an id"""
     predictions_df = pd.DataFrame()
-    repeated_id = np.repeat(id_, len(y_true))
     if groups is not None:
-        assert len(groups) == len(repeated_id), \
-            "groups: {}, repeated_id: {}".format(len(groups), len(repeated_id))
+        assert len(groups) == len(y_true), \
+            "groups: {}, y_true: {}".format(len(groups), len(y_true))
 
-    for i in range(len(repeated_id)):
-        row = {"id": repeated_id[i],
+    for i in range(len(y_true)):
+        row = {"id": id_,
                "y_true": y_true[i],
                "y_pred": predictions[i]}
         if groups is not None:
@@ -218,7 +216,9 @@ def validate(X, y, clf, n_splits, shuffle_splits,
      model on every test fold using a different seed (=fold_id)"""
     predictions_by_fold = pd.DataFrame()
     train_predictions_by_fold = pd.DataFrame()
-    info_by_fold = []
+    all_feature_importances = pd.DataFrame()
+    all_pca_components = pd.DataFrame()
+    info = {}
 
     # for cropped decoding, X is 3 dim. n_trials x n_epochs x n_features,
     # where n_epochs per trial varies. group epochs wrt trials, s.t. they
@@ -237,7 +237,7 @@ def validate(X, y, clf, n_splits, shuffle_splits,
     else:
         splits = kf.split(X)
 
-    # TODO: use yield here?
+    # use yield here?
     for fold_id, (train_ind, test_ind) in enumerate(splits):
         logging.debug("this is fold {}".format(fold_id))
         if hasattr(clf, "random_state"):
@@ -252,42 +252,59 @@ def validate(X, y, clf, n_splits, shuffle_splits,
             test_groups = None
             X_train, y_train, X_test, y_test = get_train_test(
                 X, y, train_ind, test_ind)
-        predictions_train, predictions, info = decode_once(
-            X_train, X_test, y_train, clf, scaler, pca_thresh)
-        predictions_df = create_df_from_predictions(fold_id, predictions,
-                                                    y_test, test_groups)
+
+        predictions_train, predictions, feature_importances, pca_components = \
+            decode_once(X_train, X_test, y_train, clf, scaler, pca_thresh)
+
+        predictions_df = create_df_from_predictions(
+            fold_id, predictions, y_test, test_groups)
+        predictions_by_fold = predictions_by_fold.append(predictions_df)
+
         train_predictions_df = create_df_from_predictions(
             fold_id, predictions_train, y_train, train_groups)
-        predictions_by_fold = predictions_by_fold.append(predictions_df)
         train_predictions_by_fold = train_predictions_by_fold.append(
             train_predictions_df)
-        info_by_fold.append(info)
+
+        if feature_importances is not None:
+            all_feature_importances = all_feature_importances.append(
+                feature_importances, ignore_index=True)
+        if pca_components is not None:
+            pca_components["id"] = pd.Series([fold_id] * len(pca_components), index=pca_components.index)
+            all_pca_components = all_pca_components.append(
+                pca_components, ignore_index=True)
+
+    if all_feature_importances.size > 0:
+        info.update({"feature_importances": all_feature_importances})
+    if all_pca_components.size > 0:
+        info.update({"pca_components": all_pca_components})
+
     return {"valid": predictions_by_fold,
-            "train": train_predictions_by_fold}, \
-           {"valid": info_by_fold}
+            "train": train_predictions_by_fold}, {"valid": info}
 
 
-# TODO: set random state to sth random and not repetition id?
+# TODO: set random state to sth?
 def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
                    scaler=StandardScaler(), pca_thresh=None):
     """ do final evaluation on held-back evaluation set. this should only be
     done once """
     predictions_by_repetition = pd.DataFrame()
-    info_by_repetition = pd.DataFrame()
+    all_feature_importances = pd.DataFrame()
     for repetition_id in range(n_repetitions):
         logging.debug("this is repetition {}".format(repetition_id))
         # if hasattr(clf, "random_state"):
         #     clf.random_state = repetition_id
         #     logging.debug("set random state to {}".format(repetition_id))
 
-        predictions_train, predictions, info = decode_once(
-            X, X_eval, y, clf, scaler, pca_thresh)
-        predictions_df = create_df_from_predictions(repetition_id, predictions,
-                                                    y_eval)
+        predictions_train, predictions, feature_importances, pca_components = \
+            decode_once(X, X_eval, y, clf, scaler, pca_thresh)
+        predictions_df = create_df_from_predictions(
+            repetition_id, predictions, y_eval)
         predictions_by_repetition = predictions_by_repetition.append(
             predictions_df)
-        info_by_repetition = info_by_repetition.append(pd.DataFrame.from_dict(info))
-    return {"eval": predictions_by_repetition}, {"eval": info_by_repetition}
+        all_feature_importances = all_feature_importances.append(
+            feature_importances, ignore_index=True)
+    return {"eval": predictions_by_repetition}, \
+           {"eval": {"feature_importances": all_feature_importances}}
 
 
 def decode(train_set, clf, n_splits_or_repetitions, shuffle_splits,
