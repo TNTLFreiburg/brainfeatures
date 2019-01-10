@@ -83,6 +83,7 @@ class Experiment(object):
                  n_splits_or_repetitions: int=5, shuffle_splits: bool=False,
                  pca_thresh: float=None, scaler=StandardScaler(),
                  feature_vector_modifier: callable=None, verbosity: str="INFO"):
+
         self.data_sets = OrderedDict([("devel", devel_set), ("eval", eval_set)])
         self.feature_generation_procedure = feature_generation_procedure
         self.feature_generation_params = feature_generation_params
@@ -133,7 +134,7 @@ class Experiment(object):
         assert self.shuffle_splits in [True, False], \
             "shuffle_splits has to be boolean"
         assert type(self.n_splits_or_repetitions) is int and \
-               self.n_splits_or_repetitions > 0, \
+            self.n_splits_or_repetitions > 0, \
             "n_repetitions has to be an integer larger than 0"
         if self.data_sets["eval"] is None:
             assert self.n_splits_or_repetitions >= 2, \
@@ -152,13 +153,13 @@ class Experiment(object):
             for scaling_function in scaling_functions:
                 assert hasattr(self.scaler, scaling_function), \
                     "scaler is not following scikit-learn api ({})" \
-                        .format(scaling_function)
+                    .format(scaling_function)
         if self.clf is not None:
             decoding_functions = ["fit", "predict"]
             for decoding_function in decoding_functions:
                 assert hasattr(self.clf, decoding_function), \
                     "classifier is not following scikit-learn api ({})"\
-                        .format(decoding_function)
+                    .format(decoding_function)
         if self.pca_thresh:
             assert type(self.pca_thresh) in [int, float], \
                 "pca_thresh has to be either int or float"
@@ -274,6 +275,10 @@ class Experiment(object):
             self.n_splits_or_repetitions, self.shuffle_splits, self.scaler,
             self.pca_thresh)
         self.predictions.update(validation_results)
+        if "pca_components" in info["valid"]:
+            info["valid"]["pca_components"].columns = self.feature_labels + ["id"]
+        elif "feature_importances" in info["valid"]:
+            info["valid"]["feature_importances"].columns = self.feature_labels
         self.info.update(info)
         self.times["validation"] = time.time() - start
 
