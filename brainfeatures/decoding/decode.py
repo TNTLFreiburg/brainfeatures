@@ -1,22 +1,25 @@
 from sklearn.model_selection import KFold, ParameterSampler
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
 from sklearn.decomposition.pca import PCA
 import pandas as pd
 import numpy as np
 import logging
+# import rfpimp
 import time
 
 from brainfeatures.analysis.analyze import analyze_quality_of_predictions
 
 # TODO: when using pca, prune not only feature matrices but also feature labels
 # TODO: or do not use pca and feature importances together?
+# TODO: use data frames to solve this! they hold the feature labels already!!!
 
 
 def get_X_y(data_set, agg_f=None):
     """ read all data from the data set """
     X, y = [], []
     for i, (x, sfreq, label) in enumerate(data_set):
-        if agg_f is not None:
+        if agg_f is not None and hasattr(x[0][0], "__len__"):
             x = (agg_f(x, axis=0))
         X.append(x)
         y.append(label)
@@ -99,22 +102,30 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
         X_train, X_test, pca_info = apply_pca(X_train, X_test, pca_thresh)
         info.update(pca_info)
     clf = clf.fit(X_train, y_train)
-    # TODO: use rfpimp package to get more reliable feature importances
     if hasattr(clf, "feature_importances_"):
         # save random forest feature importances for analysis
         info.update({"feature_importances": clf.feature_importances_})
+        # TODO: use rfpimp package to get more reliable feature importances
+        # print("now doing rfpimp importances")
+        # rfpimp_importances = rfpimp.permutation_importances(
+        #     clf, X_train, y_train, accuracy_score)
+        # info.update({"rfpimp_feature_importances": rfpimp_importances})
 
     if hasattr(clf, "predict_proba"):
         # save probabilities of positive class (equal to 1 - negaive class)
+        y_hat_train = clf.predict_proba(X_train)
+        y_hat_train = y_hat_train[:, -1]
         y_hat = clf.predict_proba(X_test)
         y_hat = y_hat[:, -1]
     elif hasattr(clf, "decision_function"):
         # for auc save svm distance of points to margin
         y_hat = clf.decision_function(X_test)
+        y_hat_train = clf.decision_function(X_train)
     else:
         # create labels
         y_hat = clf.predict(X_test)
-    return y_hat, info
+        y_hat_train = clf.predict(X_train)
+    return y_hat_train, y_hat, info
 
 
 def create_df_from_predictions(id_, predictions, y_true, groups=None):
@@ -199,6 +210,7 @@ def tune(X, y, clf, random_grid, n_iter, n_splits=5, shuffle_splits=False,
     return res
 
 
+# TODO: add train scores
 def validate(X, y, clf, n_splits, shuffle_splits,
              scaler=StandardScaler(), pca_thresh=None):
     """ do special cross-validation: split data in n_splits, evaluate
@@ -237,13 +249,16 @@ def validate(X, y, clf, n_splits, shuffle_splits,
             test_groups = None
             X_train, y_train, X_test, y_test = get_train_test(
                 X, y, train_ind, test_ind)
-        predictions, info = decode_once(X_train, X_test, y_train, clf,
-                                        scaler, pca_thresh)
+        predictions_train, predictions, info = decode_once(
+            X_train, X_test, y_train, clf, scaler, pca_thresh)
         predictions_df = create_df_from_predictions(fold_id, predictions,
                                                     y_test, test_groups)
         predictions_by_fold = predictions_by_fold.append(predictions_df)
         info_by_fold.append(info)
-    return {"predictions": predictions_by_fold}, info_by_fold
+    return {"train": predictions_by_fold,
+            # "train": predictions_by_fold
+            }, \
+           {"train": info_by_fold}
 
 
 # TODO: set random state to sth random and not repetition id?
@@ -259,7 +274,8 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
         #     clf.random_state = repetition_id
         #     logging.debug("set random state to {}".format(repetition_id))
 
-        predictions, info = decode_once(X, X_eval, y, clf, scaler, pca_thresh)
+        predictions_train, predictions, info = decode_once(
+            X, X_eval, y, clf, scaler, pca_thresh)
         predictions_df = create_df_from_predictions(repetition_id, predictions,
                                                     y_eval)
         predictions_by_repetition = predictions_by_repetition.append(
