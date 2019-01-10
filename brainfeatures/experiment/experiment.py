@@ -19,7 +19,6 @@ from brainfeatures.decoding.decode import validate, final_evaluate
 # TODO: move agg mode out of feature generators to experiment? -> moves a lot of data around
 # TODO: free memory? how much memory is needed?
 # TODO: split devel into train/test before cleaning/feature generation?
-# TODO: prune variables visible for user?
 
 
 class Experiment(object):
@@ -100,7 +99,6 @@ class Experiment(object):
         self._clf = clf
 
         self.features = {"devel": [], "eval": []}
-        # self.targets = {"devel": [], "eval": []}
         self.clean = {"devel": [], "eval": []}
         self.info = {"devel": {}, "eval": {}}
         self._feature_vector_modifier = feature_vector_modifier
@@ -196,7 +194,6 @@ class Experiment(object):
             if "sfreq" not in self.info[devel_or_eval]:
                 self.info[devel_or_eval]["sfreq"] = sfreq
             self.clean[devel_or_eval].append(cleaned_signals)
-        # self.targets[devel_or_eval] = self._data_sets[devel_or_eval].targets
         self.times.setdefault("cleaning", {}).update(
             {devel_or_eval: time.time() - start})
 
@@ -221,7 +218,6 @@ class Experiment(object):
             if self.feature_labels is None:
                 self.feature_labels = list(data.columns)
             getattr(self, clean_or_features)[devel_or_eval].append(data)
-            # self.targets[devel_or_eval].append(label)
         self.times.setdefault("loading", {}).update(
             {devel_or_eval: time.time() - start})
 
@@ -256,7 +252,6 @@ class Experiment(object):
             # vector is None remove according label!
             else:
                 del self._data_sets[devel_or_eval].targets[i]
-                # del self.targets[devel_or_eval][i]
                 logging.warning("removed example {} from labels".format(i))
         assert len(self.features[devel_or_eval]) == \
             len(self._data_sets[devel_or_eval].targets), \
@@ -296,18 +291,26 @@ class Experiment(object):
         """
         if devel_or_eval == "devel":
             valid_or_final_evaluation = "validation"
+            logging.info("Computing performances ({})".format(
+                valid_or_final_evaluation))
+            for train_or_devel in ["train", "devel"]:
+                if train_or_devel == "devel":
+                    train_or_devel = "valid"
+                performances = analyze_quality_of_predictions(
+                    self.predictions[train_or_devel], self._metrics)
+                self.performances.update({train_or_devel: performances})
+                logging.info("Achieved in average\n{}\n on {} set.".format(
+                    self.performances[train_or_devel].mean().to_string(), train_or_devel))
+        # TODO: remove duplicate code
         else:
             valid_or_final_evaluation = "final evaluation"
-        logging.info("Computing performances ({})".format(
-            valid_or_final_evaluation))
-        for train_or_devel in ["train", "devel"]:
-            if train_or_devel == "devel":
-                train_or_devel = "valid"
+            logging.info("Computing performances ({})".format(
+                valid_or_final_evaluation))
             performances = analyze_quality_of_predictions(
-                self.predictions[train_or_devel], self._metrics)
-            self.performances.update({train_or_devel: performances})
+                self.predictions[devel_or_eval], self._metrics)
+            self.performances.update({devel_or_eval: performances})
             logging.info("Achieved in average\n{}\n on {} set.".format(
-                self.performances[train_or_devel].mean().to_string(), train_or_devel))
+                self.performances[devel_or_eval].mean().to_string(), valid_or_final_evaluation))
 
     def _final_evaluate(self):
         """
