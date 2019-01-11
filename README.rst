@@ -1,3 +1,5 @@
+Note: this repository is in development and in an early alpha state. API-breaking chages might and will happen.
+
 Brainfeatures
 =============
 
