@@ -36,8 +36,8 @@ def add_meta_feature(data_set, features, feature_labels):
     for feature in features_to_add:
         for i in range(len(features)):
             repeated_meta_feature = np.repeat(features_to_add[feature][i], len(features[i]))
-            repeated_meta_feature = repeated_meta_feature.reshape(-1, 1)
-            features[i] = np.concatenate((features[i], repeated_meta_feature), axis=1)
+            repeated_meta_feature = pd.DataFrame(repeated_meta_feature.reshape(-1, 1))
+            features[i] = pd.concat((features[i], repeated_meta_feature), axis=1)
         feature_label = "meta_" + feature
         if feature_label not in feature_labels[::-1]:
             feature_labels.append(feature_label)
