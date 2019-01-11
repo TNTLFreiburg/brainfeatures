@@ -1,4 +1,4 @@
-Note: this repository is in development and in an early alpha state. API-breaking chages might and will happen.
+Note: this repository is in development and in an early alpha state. API-breaking changes might occur anytime.
 
 Brainfeatures
 =============
