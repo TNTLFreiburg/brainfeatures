@@ -10,10 +10,6 @@ import time
 
 from brainfeatures.analysis.analyze import analyze_quality_of_predictions
 
-# TODO: when using pca, prune not only feature matrices but also feature labels
-# TODO: or do not use pca and feature importances together?
-# TODO: use data frames to solve this! they hold the feature labels already!!!
-
 
 def get_X_y(data_set, agg_f=None):
     """ read all data from the data set """
@@ -36,33 +32,38 @@ def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
     unique_groups = np.unique(epoch_to_group_map)
     unique_test_groups = np.array(unique_groups)[test_ind]
     assert len(unique_groups) == len(X)
+    feature_labels = X[0].columns
 
     train_groups, test_groups = [], []
     X_train, y_train, X_test, y_test = [], [], [], []
     for trial_i in range(len(X)):
         if trial_i in unique_test_groups:
-            X_test.extend(X[trial_i])
+            X_test.extend(np.array(X[trial_i]))
             y_test.extend([y[trial_i]] * len(X[trial_i]))
             test_groups.extend([trial_i] * len(X[trial_i]))
         else:
-            X_train.extend(X[trial_i])
+            X_train.extend(np.array(X[trial_i]))
             y_train.extend([y[trial_i]] * len(X[trial_i]))
             train_groups.extend([trial_i] * len(X[trial_i]))
-    X_test = np.array(X_test)
-    X_train = np.array(X_train)
+    X_test = pd.DataFrame(X_test, columns=feature_labels)
+    X_train = pd.DataFrame(X_train, columns=feature_labels)
     return X_train, y_train, X_test, y_test, train_groups, test_groups
 
 
 def apply_scaler(X_train, X_test, scaler=StandardScaler()):
     """ fit and tranform a train set, transform a test set accordingly """
+    feature_labels = X_train.columns
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
+    X_train = pd.DataFrame(X_train, columns=feature_labels)
+    X_test = pd.DataFrame(X_test, columns=feature_labels)
     return X_train, X_test
 
 
 def apply_pca(X_train, X_test, pca_thresh):
     """ apply principal component analysis to reduce dimensionality of feature
     vectors"""
+    feature_labels = X_train.columns
     pca = PCA(n_components=pca_thresh)
     shape_orig = X_train.shape
     X_train = pca.fit_transform(X_train)
@@ -71,8 +72,7 @@ def apply_pca(X_train, X_test, pca_thresh):
     logging.info("reduced dimensionality from {} to {}"
                  .format(shape_orig, shape_reduced))
     rows = ["PC-{}".format(i) for i in range(len(pca.components_))]
-    # components = pd.DataFrame(pca.components_, columns=X_train.columns, index=rows)
-    components = pd.DataFrame(pca.components_, index=rows)
+    components = pd.DataFrame(pca.components_, columns=feature_labels, index=rows)
     return X_train, X_test, components
 
 
@@ -83,15 +83,21 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
     logging.debug("{} examples in train set, {} examples in test set".format(
         len(X_train), len(X_test)))
 
+    feature_labels = list(X_train.columns)
+
     feature_importances, pca_components = None, None
     if scaler is not None:
         X_train, X_test = apply_scaler(X_train, X_test, scaler)
     if pca_thresh is not None:
         X_train, X_test, pca_components = apply_pca(X_train, X_test, pca_thresh)
     clf = clf.fit(X_train, y_train)
+    # TODO: make sure principle components and feature importances are in the same order
     if hasattr(clf, "feature_importances_"):
+        if pca_thresh is not None:
+            feature_labels = list(pca_components.index)
         # save random forest feature importances for analysis
-        feature_importances = pd.DataFrame([clf.feature_importances_])
+        feature_importances = pd.DataFrame([clf.feature_importances_],
+                                           columns=feature_labels)
         # TODO: use rfpimp package to get more reliable feature importances
         # print("now doing rfpimp importances")
         # rfpimp_importances = rfpimp.permutation_importances(
@@ -164,6 +170,7 @@ def tune_generator(X, y, clf, random_grid, n_iter, n_splits=5, shuffle_splits=Fa
         yield conf
 
 
+# TODO: move this to optim module?
 def write_tune_result_successively_to_csv(out_file, res, write_header=False):
     if out_file is not None:
         with open(out_file, 'a') as csv_file:
@@ -240,6 +247,7 @@ def validate(X, y, clf, n_splits, shuffle_splits,
         if feature_importances is not None:
             all_feature_importances = all_feature_importances.append(
                 feature_importances, ignore_index=True)
+        # move id to first column?
         if pca_components is not None:
             pca_components["id"] = pd.Series([fold_id] * len(pca_components), index=pca_components.index)
             all_pca_components = all_pca_components.append(
@@ -254,7 +262,7 @@ def validate(X, y, clf, n_splits, shuffle_splits,
             "train": train_predictions_by_fold}, {"valid": info}
 
 
-# TODO: set random state to sth?
+# TODO: set random state?
 def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
                    scaler=StandardScaler(), pca_thresh=None):
     """ do final evaluation on held-back evaluation set. this should only be
@@ -264,7 +272,6 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
     all_pca_components = pd.DataFrame()
     info = {}
 
-    # how to handle crops here?
     eval_groups = []
     for trial_i, trial_features in enumerate(X_eval):
         eval_groups.extend(len(trial_features) * [trial_i])
