@@ -10,6 +10,7 @@ This repository contains modified code from the `pyeeg <https://github.com/forre
 Installation
 ============
 Soon you will be able to run:
+
 .. code-block:: bash
 
   pip install brainfeatures
