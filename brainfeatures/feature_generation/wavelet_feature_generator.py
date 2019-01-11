@@ -185,7 +185,6 @@ class WaveletFeatureGenerator(AbstractFeatureGenerator):
             pseudo_freqs = [pseudo_freq for pseudo_freq in pseudo_freqs
                             if pseudo_freq >= 2]
             self.levels = self.generate_level_names(len(pseudo_freqs))
-            print(pseudo_freqs)
         n_levels = len(self.levels)
         dwt_feats = np.ndarray(
             shape=(n_windows, len(self.wt_feats), n_levels, n_elecs)

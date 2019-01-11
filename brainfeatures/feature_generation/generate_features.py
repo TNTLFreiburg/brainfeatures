@@ -43,7 +43,6 @@ def run_checks(band_limits, sfreq, epoch_duration_s, agg_mode, window_name,
     band_widths = np.array(band_widths)
     assert np.sum(band_widths < bin_size) == 0, \
         "Cannot have frequency bands smaller than bin size {}".format(bin_size)
-    print(agg_mode)
     assert agg_mode in ["mean", "median", "var", "None", "none", None], \
         "Unknown aggregation mode {}".format(agg_mode)
     assert window_name in ["boxcar", "blackmanharris", "hamming", "hann",
