@@ -43,29 +43,23 @@ def labels_from_continuous(y_pred):
 # groups are not split in cv
 def analyze_quality_of_predictions(predictions, metrics=accuracy_score):
     """ for given predictions, compute given metrics """
-    ids = predictions.id.unique()
-
     if not hasattr(metrics, "__len__"):
         metrics = [metrics]
 
     df = pd.DataFrame()
-    for id_ in ids:
-        # take predictions per fold/repetition
-        id_df = predictions[predictions.id == id_]
+    for i, id_df in predictions.groupby("id"):
+        id_df = id_df.drop("id", axis=1)
         y_true = id_df.y_true
         y_pred = id_df.y_pred
 
         # average crop predictions
-        if hasattr(id_df, "group"):
-            mean_y_true = id_df.groupby("group").mean().y_true
-            mean_y_pred = id_df.groupby("group").mean().y_pred
-            # mean_y_pred_labels = [0 if y < thresh else 1 for y in mean_y_pred]
+        mean_y_true = id_df.groupby("group").mean().y_true
+        mean_y_pred = id_df.groupby("group").mean().y_pred
 
         row = {}
         for metric in metrics:
             metric_name = metric.__name__
-            if hasattr(id_df, "group"):
-                # performance = metric(mean_y_true, mean_y_pred_labels)
+            if len(id_df[id_df.group == 0]) > 1:
                 performance = apply_metric(mean_y_true, mean_y_pred, metric)
                 row.update({metric_name: performance})
                 metric_name = 'crop_' + metric_name
@@ -77,8 +71,7 @@ def analyze_quality_of_predictions(predictions, metrics=accuracy_score):
     return df
 
 
-def analyze_feature_correlations(feature_matrices, feature_labels=None,
-                                 out_dir=None):
+def analyze_feature_correlations(feature_matrices, out_dir=None):
     """ analyze feature correlations """
     # check whether feature matrices are 2d or 3d
     # compute inner / outer correlations
@@ -86,6 +79,7 @@ def analyze_feature_correlations(feature_matrices, feature_labels=None,
     # visualize correlation map(s)
     # check if matrix is n_recs x n_windows x n_features
     # or n_recs x n_features
+    feature_labels = feature_matrices.columns
     do_cropped = hasattr(feature_matrices[0][0], "__len__")
     if do_cropped:
         feature_matrices = [np.mean(m, axis=0) for m in feature_matrices]
@@ -97,10 +91,11 @@ def analyze_feature_correlations(feature_matrices, feature_labels=None,
     return correlations
 
 
-def analyze_feature_importances(feature_importances, feature_labels, out_dir=None):
+def analyze_feature_importances(feature_importances, out_dir=None):
     """ analyze importance of features (as returned by rf) """
     # visualize top 5 important features per electrode on head scheme
     # average over individual features / electrodes / frequency bands
+    feature_labels = feature_importances.columns
     mean_importances = np.mean(feature_importances, axis=0)
     plot_mean_feature_importances_spatial(mean_importances,
                                           feature_labels, out_dir)
@@ -132,22 +127,26 @@ def analyze_feature_importances(feature_importances, feature_labels, out_dir=Non
                                  mean_importances, feature_labels)
 
 
-def analyze_pca_components(pca_components, feature_labels):
-    mean_components = np.mean(pca_components, axis=0)
-    raise NotImplementedError
+def analyze_pca_components(pca_components, out_dir=None):
+    # TODO: test / make sure that these are correctly sorted!
+    feature_labels = sorted(list(pca_components.columns))
+    for i, g in pca_components.groupby("id"):
+        g = g.drop("id", axis=1)
+        d = np.argmax(np.abs(g.as_matrix()), axis=1)
+        print(feature_labels[d])
+        print()
 
 
-def analyze(predictions, feature_matrices=None,
-            feature_importances=None, feature_labels=None, labels=None,
-            out_dir=None):
+def analyze(predictions, feature_matrices=None, feature_importances=None,
+            labels=None, out_dir=None):
     """ """
     logging.info("analyzing quality of predictions")
     analyze_quality_of_predictions(predictions)
+    feature_labels = feature_matrices.columns
     if feature_matrices is not None and feature_labels is not None and \
             labels is not None:
         logging.info("analyzing feature correlations")
-        analyze_feature_correlations(feature_matrices, feature_labels, out_dir)
+        analyze_feature_correlations(feature_matrices, out_dir)
     if feature_importances is not None and feature_labels is not None:
         logging.info("analyzing feature importances")
-        analyze_feature_importances(feature_importances, feature_labels,
-                                    out_dir)
+        analyze_feature_importances(feature_importances, out_dir)
