@@ -20,4 +20,4 @@ Soon you will be able to run:
 
 Documentation
 =============
-Under construction.
+Documentation will soon be avaible at `gemeinl.github.io/brainfeatures <gemeinl.github.io/brainfeatures>`
