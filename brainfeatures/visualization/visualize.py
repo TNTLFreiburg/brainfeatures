@@ -219,6 +219,8 @@ def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
     plt.close('all')
 
 
+# TODO: re-check this
+# TODO: this should not do any more computations
 def plot_scaled_mean_importances(list_of_properties_and_name, mean_feature_importances, feature_labels, out_dir=None):
     plt.figure(figsize=(7*len(list_of_properties_and_name), 5))
     for j, (properties, property_name) in enumerate(list_of_properties_and_name):
