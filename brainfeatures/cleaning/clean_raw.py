@@ -5,7 +5,7 @@ from brainfeatures.cleaning.rules import remove_start, remove_end, \
     take_part, resample, clip_values
 
 
-default_cleaning_params = {
+default_preproc_params = {
     "sec_to_cut_start": 60,
     "sec_to_cut_end": 0,
     "duration_recording_mins": 20,
@@ -15,9 +15,9 @@ default_cleaning_params = {
 }
 
 
-def clean_one_file(signals, fs, target, sec_to_cut_start, sec_to_cut_end,
-                   duration_recording_mins, resample_freq, max_abs_val,
-                   clip_before_resample=False):
+def preprocess_one_file(signals, fs, target, sec_to_cut_start, sec_to_cut_end,
+                        duration_recording_mins, resample_freq, max_abs_val,
+                        clip_before_resample=False):
     channels = signals.index
     signals = np.array(signals)
     # discard first seconds
