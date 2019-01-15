@@ -19,7 +19,7 @@ def test_validate():
     expected = np.array(probas)[:, -1]
 
     result, info = validate(X, y, clf, 2, False, None, None)
-    preds = result["predictions"]
+    preds = result["valid"]
     y_pred = preds[preds.id == 0]["y_pred"]
     np.testing.assert_array_equal(y_pred, expected)
 
@@ -30,7 +30,7 @@ def test_validate():
     y_pred = preds[preds.id == 1]["y_pred"]
     np.testing.assert_array_equal(y_pred, expected)
 
-    assert "feature_importances" in info[0]
+    assert "feature_importances" in info["valid"][0]
 
 
 # def test_validate_cropped():
@@ -77,7 +77,7 @@ def test_get_cropped_train_test():
     y = np.array(7 * [0] + 3 * [1])
     train_ind = [0, 1, 2, 3, 4, 5, 6, 7]
     test_ind = [8, 9]
-    X_train, y_train, X_test, y_test, test_groups = get_cropped_train_test(
+    X_train, y_train, X_test, y_test, train_groups, test_groups = get_cropped_train_test(
         X, y, train_ind, test_ind, epoch_to_group_map)
     expected = len(X[-2]) * [test_ind[-2]] + len(X[-1]) * [test_ind[-1]]
     np.testing.assert_array_equal(expected, test_groups)
@@ -99,6 +99,6 @@ def test_decode_once():
     probas = clf.predict_proba(X[test_ind])
     expected = probas[:, 1]
 
-    result, info = decode_once(X[train_ind], X[test_ind], y[train_ind], clf, scaler=None, pca_thresh=None)
+    result_train, result, info = decode_once(X[train_ind], X[test_ind], y[train_ind], clf, scaler=None, pca_thresh=None)
     np.testing.assert_array_equal(expected, result)
     assert "feature_importances" in info
