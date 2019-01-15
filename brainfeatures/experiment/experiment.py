@@ -54,13 +54,13 @@ class Experiment(object):
         if not None, experiment will perform final evaluation
     n_jobs: int, optional
         number of jobs to use for parallel cleaning / feature generation
-    cleaning_procedure: function, optional
+    preproc_function: function, optional
         takes signals and sampling frequency of the signals and returns cleaned
         signals
-    cleaning_params: dict, optional
+    preproc_params: dict, optional
         keyword arguments needed for cleaning functions except signals and
         sampling frequency in the form
-    feature_generation_procedure: function, optional
+    feature_generation_function: function, optional
     feature_generation_params: dict, optional
         keyword arguments needed for feature generation functions except
         signals and sampling frequency
@@ -84,9 +84,9 @@ class Experiment(object):
             metrics=accuracy_score,
             eval_set=None,
             n_jobs: int=1,
-            cleaning_procedure: callable=None,
-            cleaning_params: dict=None,
-            feature_generation_procedure: callable=generate_features_of_one_file,
+            preproc_function: callable=None,
+            preproc_params: dict=None,
+            feature_generation_function: callable=generate_features_of_one_file,
             feature_generation_params: dict=default_feature_generation_params,
             n_splits_or_repetitions: int=5,
             shuffle_splits: bool=False,
@@ -96,13 +96,13 @@ class Experiment(object):
             verbosity: str="INFO"):
 
         self._data_sets = OrderedDict([("devel", devel_set), ("eval", eval_set)])
-        self._feature_generation_procedure = feature_generation_procedure
-        self._feature_generation_params = feature_generation_params
-        self._n_splits_or_repetitions = n_splits_or_repetitions
-        self._feature_vector_modifier = feature_vector_modifier
-        self._cleaning_procedure = cleaning_procedure
-        self._cleaning_params = cleaning_params
+        self._feat_gen_params = feature_generation_params
+        self._feature_modifier = feature_vector_modifier
+        self._feat_gen_f = feature_generation_function
+        self._n_runs = n_splits_or_repetitions
+        self._preproc_params = preproc_params
         self._shuffle_splits = shuffle_splits
+        self._preproc_f = preproc_function
         self._pca_thresh = pca_thresh
         self._verbosity = verbosity
         self._metrics = metrics
@@ -113,8 +113,8 @@ class Experiment(object):
         self._features = {"devel": [], "eval": []}
         self._targets = {"devel": [], "eval": []}
         self._cleaned = {"devel": [], "eval": []}
-        self._feature_labels = None
         self.info = {"devel": {}, "eval": {}}
+        self._feature_names = None
         self.performances = {}
         self.predictions = {}
         self.times = {}
@@ -125,17 +125,17 @@ class Experiment(object):
         """
         assert self._verbosity in ["DEBUG", "INFO", "WARNING", "ERROR",
                                    0, 10, 20, 30, 40], "unknown verbosity level"
-        if self._feature_generation_procedure is not None:
-            assert hasattr(self._feature_generation_procedure, "__call__"), \
+        if self._feat_gen_f is not None:
+            assert hasattr(self._feat_gen_f, "__call__"), \
                 "feature_generation_procedure has to be a callable"
-        if self._cleaning_procedure is not None:
-            assert hasattr(self._cleaning_procedure, "__call__"), \
+        if self._preproc_f is not None:
+            assert hasattr(self._preproc_f, "__call__"), \
                 "cleaning_procedure has to be a callable"
-        if self._cleaning_params is not None:
-            assert type(self._cleaning_params) is dict, \
+        if self._preproc_params is not None:
+            assert type(self._preproc_params) is dict, \
                 "cleaning_params has to be a dictionary"
-        if self._feature_generation_params is not None:
-            assert type(self._feature_generation_params) is dict, \
+        if self._feat_gen_params is not None:
+            assert type(self._feat_gen_params) is dict, \
                 "feature_generation_params has to be a dictionary"
         assert len(self._data_sets["devel"][0]) == 3, \
             "__getitem__ of data set needs to return x, fs, y"
@@ -143,16 +143,16 @@ class Experiment(object):
             "expecting a pandas data frame with channel / feature names as columns"
         assert self._shuffle_splits in [True, False], \
             "shuffle_splits has to be boolean"
-        assert type(self._n_splits_or_repetitions) is int and \
-            self._n_splits_or_repetitions > 0, \
+        assert type(self._n_runs) is int and \
+            self._n_runs > 0, \
             "n_repetitions has to be an integer larger than 0"
         if self._data_sets["eval"] is None:
-            assert self._n_splits_or_repetitions >= 2, \
+            assert self._n_runs >= 2, \
                 "need at least two splits for cv"
         assert type(self._n_jobs) is int and self._n_jobs >= -1, \
             "n_jobs has to be an integer larger or equal to -1"
-        if self._feature_vector_modifier is not None:
-            assert callable(self._feature_vector_modifier), \
+        if self._feature_modifier is not None:
+            assert callable(self._feature_modifier), \
                 "modifier has to be a callable"
         if hasattr(self._clf, "n_jobs"):
             self._clf.n_jobs = self._n_jobs
@@ -182,95 +182,90 @@ class Experiment(object):
             self._cleaned.pop("eval")
             self.info.pop("eval")
 
-    def _clean(self, devel_or_eval):
+    def _clean(self, set_name):
         """
         Apply given cleaning rules to all examples in data set specified by
-        devel_or_eval.
+        set_name.
 
         Parameters
         ----------
-        devel_or_eval: str
+        set_name: str
             either "devel" or "eval"
         """
         start = time.time()
-        logging.info("Making clean ({})".format(devel_or_eval))
-        if self._cleaning_params is not None:
-            self._cleaning_procedure = partial(self._cleaning_procedure,
-                                               **self._cleaning_params)
-        cleaned_signals_and_sfreq_and_label = Parallel(n_jobs=self._n_jobs)\
-            (delayed(self._cleaning_procedure)(example, sfreq, label)
-                for (example, sfreq, label) in self._data_sets[devel_or_eval])
-        # not nice, iterating twice
-        for (cleaned_signals, sfreq, label) in cleaned_signals_and_sfreq_and_label:
-            if "sfreq" not in self.info[devel_or_eval]:
-                self.info[devel_or_eval]["sfreq"] = sfreq
-            self._cleaned[devel_or_eval].append(cleaned_signals)
-            self._targets[devel_or_eval].append(label)
-        self.times.setdefault("cleaning", {}).update(
-            {devel_or_eval: time.time() - start})
+        logging.info("Making clean ({})".format(set_name))
+        if self._preproc_params is not None:
+            self._preproc_f = partial(self._preproc_f, **self._preproc_params)
 
-    def _load(self, devel_or_eval, clean_or_features):
+        x_pre_fs_pre_y_pre = Parallel(n_jobs=self._n_jobs)\
+            (delayed(self._preproc_f)(x, fs, y)
+                for (x, fs, y) in self._data_sets[set_name])
+
+        for (x_pre, fs_pre, y_pre) in x_pre_fs_pre_y_pre:
+            if "sfreq" not in self.info[set_name]:
+                self.info[set_name]["sfreq"] = fs_pre
+            self._cleaned[set_name].append(x_pre)
+            self._targets[set_name].append(y_pre)
+        self.times.setdefault("cleaning", {}).update(
+            {set_name: time.time() - start})
+
+    def _load(self, set_name, set_state):
         """
         Load cleaned signals or features from data set specified by
-        devel_or_eval.
+        set_name.
 
         Parameters
         ----------
-        devel_or_eval: str
+        set_name: str
             either "devel" or "eval"
-        clean_or_features: str
+        set_state: str
             either "clean" or "features"
         """
         start = time.time()
-        logging.info("Loading {} ({})".format(devel_or_eval,
-                                              clean_or_features))
-        for (data, sfreq, label) in self._data_sets[devel_or_eval]:
-            if "sfreq" not in self.info[devel_or_eval]:
-                self.info[devel_or_eval]["sfreq"] = sfreq
-            if self._feature_labels is None:
-                self._feature_labels = list(data.columns)
-            getattr(self, "_" + clean_or_features)[devel_or_eval].append(data)
-            self._targets[devel_or_eval].append(label)
+        logging.info("Loading {} ({})".format(set_name, set_state))
+        for (x, fs, y) in self._data_sets[set_name]:
+            if "sfreq" not in self.info[set_name]:
+                self.info[set_name]["sfreq"] = fs
+            if self._feature_names is None:
+                self._feature_names = list(x.columns)
+            getattr(self, "_" + set_state)[set_name].append(x)
+            self._targets[set_name].append(y)
         self.times.setdefault("loading", {}).update(
-            {devel_or_eval: time.time() - start})
+            {set_name: time.time() - start})
 
-    def _generate_features(self, devel_or_eval):
+    def _generate_features(self, set_name):
         """
         Apply given feature generation procedure to all examples in data set
-        specified by devel_or_eval.
+        specified by set_name.
 
         Parameters
         ----------
-        devel_or_eval: str
+        set_name: str
             either "devel" or "eval"
         """
         start = time.time()
-        logging.info("Generating features ({})".format(devel_or_eval))
-        if self._feature_generation_params is not None:
-            self._feature_generation_procedure = partial(
-                self._feature_generation_procedure,
-                **self._feature_generation_params)
+        logging.info("Generating features ({})".format(set_name))
+        if self._feat_gen_params is not None:
+            self._feat_gen_f = partial(self._feat_gen_f, **self._feat_gen_params)
 
-        feature_vectors = Parallel(n_jobs=self._n_jobs)\
-            (delayed(self._feature_generation_procedure)
-                (example, self.info[devel_or_eval]["sfreq"])
-                for example in self._cleaned[devel_or_eval])
+        feature_matrix = Parallel(n_jobs=self._n_jobs)\
+            (delayed(self._feat_gen_f) (example, self.info[set_name]["sfreq"])
+                for example in self._cleaned[set_name])
 
-        for i, feature_vector in enumerate(feature_vectors):
+        for i, feature_vector in enumerate(feature_matrix):
             if feature_vector is not None:
-                if self._feature_labels is None:
-                    self._feature_labels = list(feature_vector.columns)
-                self._features[devel_or_eval].append(feature_vector)
+                if self._feature_names is None:
+                    self._feature_names = list(feature_vector.columns)
+                self._features[set_name].append(feature_vector)
             # important: if feature generation fails, and therefore feature
             # vector is None remove according label!
             else:
-                del self._targets[devel_or_eval][i]
+                del self._targets[set_name][i]
                 logging.warning("removed example {} from labels".format(i))
-        assert len(self._features[devel_or_eval]) == \
-            len(self._targets[devel_or_eval]), \
+        assert len(self._features[set_name]) == len(self._targets[set_name]), \
             "number of feature vectors does not match number of labels"
         self.times.setdefault("feature generation", {}).update(
-            {devel_or_eval: time.time() - start})
+            {set_name: time.time() - start})
 
     def _validate(self):
         """
@@ -282,43 +277,41 @@ class Experiment(object):
             "number of devel examples and labels differs!"
         validation_results, info = validate(
             self._features["devel"], self._targets["devel"], self._clf,
-            self._n_splits_or_repetitions, self._shuffle_splits, self._scaler,
+            self._n_runs, self._shuffle_splits, self._scaler,
             self._pca_thresh)
         self.predictions.update(validation_results)
         if "pca_components" in info["valid"]:
-            info["valid"]["pca_components"].columns = self._feature_labels + ["id"]
+            info["valid"]["pca_components"].columns = self._feature_names + ["id"]
         elif "feature_importances" in info["valid"]:
-            info["valid"]["feature_importances"].columns = self._feature_labels
+            info["valid"]["feature_importances"].columns = self._feature_names
         self.info.update(info)
         self.times["validation"] = time.time() - start
 
-    def _analyze_performance(self, devel_or_eval):
+    def _analyze_performance(self, set_name):
         """
         Apply specified metrics on predictions on data set specified by
-        devel_or_eval.
+        set_name.
 
         Parameters
         ----------
-        devel_or_eval: str
+        set_name: str
             either "devel" or "eval"
         """
-        performances_to_analyze = []
-        if devel_or_eval == "devel":
-            performances_to_analyze.extend(["train", "devel"])
+        set_names = []
+        if set_name == "devel":
+            set_names.extend(["train", "devel"])
         else:
-            performances_to_analyze.extend(["eval"])
+            set_names.extend(["eval"])
 
-        for train_or_devel_or_eval in performances_to_analyze:
-            if train_or_devel_or_eval == "devel":
-                train_or_devel_or_eval = "valid"
-            logging.info("Computing performances ({})".format(
-                train_or_devel_or_eval))
+        for set_name in set_names:
+            if set_name == "devel":
+                set_name = "valid"
+            logging.info("Computing performances ({})".format(set_name))
             performances = analyze_quality_of_predictions(
-                self.predictions[train_or_devel_or_eval], self._metrics)
-            self.performances.update({train_or_devel_or_eval: performances})
+                self.predictions[set_name], self._metrics)
+            self.performances.update({set_name: performances})
             logging.info("Achieved in average\n{}\n on {} set.".format(
-                self.performances[train_or_devel_or_eval].mean().to_string(),
-                train_or_devel_or_eval))
+                self.performances[set_name].mean().to_string(), set_name))
 
     def _final_evaluate(self):
         """
@@ -328,55 +321,56 @@ class Experiment(object):
         logging.info("Making predictions (final evaluation)")
         assert len(self._features["eval"]) == len(self._targets["eval"]), \
             "number of eval examples and labels differs!"
-        evaluation_results, eval_info = final_evaluate(
-            self._features["devel"], self._targets["devel"], self._features["eval"],
-            self._targets["eval"], self._clf, self._n_splits_or_repetitions,
-            self._scaler, self._pca_thresh)
-        self.predictions.update(evaluation_results)
+        eval_results, eval_info = final_evaluate(
+            self._features["devel"], self._targets["devel"],
+            self._features["eval"], self._targets["eval"], self._clf,
+            self._n_runs, self._scaler, self._pca_thresh)
+        self.predictions.update(eval_results)
         self.info.update(eval_info)
         self.times["final evaluation"] = time.time() - start
 
-    def _run(self, devel_or_eval):
+    def _decode(self, set_name):
         # TODELAY: impove feature vector modifier
-        if self._feature_vector_modifier is not None:
-            self._features[devel_or_eval], self._feature_labels =\
-                self._feature_vector_modifier(self._data_sets[devel_or_eval],
-                                              self._features[devel_or_eval],
-                                              self._feature_labels)
-            assert len(self._features[devel_or_eval]) > 0, \
+        if self._feature_modifier is not None:
+            self._features[set_name], self._feature_names =\
+                self._feature_modifier(self._data_sets[set_name],
+                                       self._features[set_name],
+                                       self._feature_names)
+            assert len(self._features[set_name]) > 0, \
                 "removed all feature vectors"
-            assert self._features[devel_or_eval][0].shape[-1] == len(self._feature_labels), \
-                "number of features and feature labels does not match"
-        if devel_or_eval == "devel":
+            assert self._features[set_name][0].shape[-1] == \
+                len(self._feature_names), "number of features and feature " \
+                                          "names does not match"
+        if set_name == "devel":
             self._validate()
         else:
             self._final_evaluate()
-        if self._metrics is not None:
-            self._analyze_performance(devel_or_eval)
-        self._analyze_features(devel_or_eval)
 
-    def _analyze_features(self, devel_or_eval):
+        if self._metrics is not None:
+            self._analyze_performance(set_name)
+        self._analyze_features(set_name)
+
+    def _analyze_features(self, set_name):
         """
         Perform analysis of features using correlation coefficient, principle
         components and featue importances.
         """
-        if devel_or_eval == "devel":
-            devel_or_eval = "valid"
+        if set_name == "devel":
+            set_name = "valid"
         # always analyze correlation of features
-        # analyze_feature_correlations(self._features[devel_or_eval])
+        # analyze_feature_correlations(self._features[set_name])
 
         # if using pca, analyze principal components
         if self._pca_thresh is not None:
             max_variance_features = analyze_pca_components(
-                self.info[devel_or_eval]["pca_components"])
-            self.info[devel_or_eval].update(
-                {"pca_features": max_variance_features})
+                self.info[set_name]["pca_components"])
+            self.info[set_name].update({"pca_features": max_variance_features})
 
         # if using random forest (default), analyze feature_importances
         if self._pca_thresh is None \
-                and "feature_importances" in self.info[devel_or_eval]:
+                and "feature_importances" in self.info[set_name]:
             analyze_feature_importances(
-                self.info[devel_or_eval]["feature_importances"])
+                self.info[set_name]["feature_importances"])
 
     def run(self):
         """
@@ -388,23 +382,23 @@ class Experiment(object):
         logging.info('Started on {} at {}'.format(today, now))
 
         self._run_checks()
-        do_clean = self._cleaning_procedure is not None
-        do_features = self._feature_generation_procedure is not None
+        do_clean = self._preproc_f is not None
+        do_features = self._feat_gen_f is not None
         do_predictions = (self._clf is not None and self._features["devel"])
-        for devel_or_eval in self._data_sets.keys():
+        for set_name in self._data_sets.keys():
             if do_clean:
-                self._clean(devel_or_eval)
+                self._clean(set_name)
 
             if do_features:
                 if not do_clean:
-                    self._load(devel_or_eval, "clean")
-                self._generate_features(devel_or_eval)
+                    self._load(set_name, "clean")
+                self._generate_features(set_name)
 
             if not do_clean and not do_features:
-                self._load(devel_or_eval, "features")
+                self._load(set_name, "features")
 
             if do_predictions:
-                self._run(devel_or_eval)
+                self._decode(set_name)
 
         today, now = date.today(), datetime.time(datetime.now())
         logging.info("Finished on {} at {}.".format(today, now))
