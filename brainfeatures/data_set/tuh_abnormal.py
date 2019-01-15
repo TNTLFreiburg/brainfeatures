@@ -50,7 +50,6 @@ def _read_all_file_names(path, extension, key="time"):
     return file_names
 
 
-# TODO: make it have X and y?
 class TuhAbnormal(DataSet):
     """tuh abnormal data set. file names are given as"""
     # v2.0.0/edf/eval/abnormal/01_tcp_ar/007/00000768/s003_2012_04_06/00000768_s003_t000.edf
@@ -87,7 +86,7 @@ class TuhAbnormal(DataSet):
 
         assert self.subset in self.file_names[0], \
             "cannot parse train or eval from file name {}"\
-                .format(self.file_names[0])
+            .format(self.file_names[0])
 
         # prune this file names to train or eval subset
         self.file_names = [file_name for file_name in self.file_names
@@ -152,10 +151,12 @@ class TuhAbnormal(DataSet):
     def __getitem__(self, index):
         file_ = self.file_names[index]
         label = self.targets[index]
+        # raw tuh data
         if self.extension == ".edf":
             signals, sfreq = mne_load_signals_and_fs_from_edf(
                 file_, self.channels, self.ch_name_pattern)
             return signals, sfreq, label
+        # preprocessed tuh data / features
         elif self.extension == ".h5":
             data = pd.read_hdf(file_, key="data")
             x_dim, y_dim = data.shape
