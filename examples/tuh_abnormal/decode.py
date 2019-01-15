@@ -19,7 +19,7 @@ def root_mean_squared_error(y_true, y_pred, sample_weight=None, multioutput='uni
 
 
 # TODO: add to cropped features as well
-# this should already work. to be tested
+# TODO: this should already work. to be tested
 def add_meta_feature(data_set, features, feature_labels):
     genders = data_set.genders
     assert len(np.unique(genders)) == 2
@@ -103,10 +103,10 @@ def run_exp(train_dir, eval_dir, model, n_folds_or_repetitions,
     exp = Experiment(
         devel_set=train_set_feats,
         clf=clf,
-        cleaning_procedure=None,
+        preproc_function=None,
         n_splits_or_repetitions=n_folds_or_repetitions,
         feature_generation_params=None,
-        feature_generation_procedure=None,
+        feature_generation_function=None,
         n_jobs=n_jobs,
         metrics=metrics,
         eval_set=eval_set_feats,
