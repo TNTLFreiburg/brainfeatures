@@ -18,12 +18,12 @@ from brainfeatures.utils.data_util import assemble_overlapping_band_limits
 
 
 default_feature_generation_params = {
-    "epoch_duration_s": 4,
+    # TODO: make this 6s?! for comparison with networks
+    "epoch_duration_s": 6,
     "max_abs_val": 800,
     "window_name": "blackmanharris",
-    "band_limits": np.array(
-        [[0, 2], [2, 4],  [4, 8], [8, 13],
-         [13, 18],  [18, 24], [24, 30], [30, 49.9]]),
+    "band_limits": [[0, 2], [2, 4],  [4, 8], [8, 13],
+                    [13, 18],  [18, 24], [24, 30], [30, 49.9]],
     "agg_mode": "median",
     "discrete_wavelet": "db4",
     "continuous_wavelet": "morl",
@@ -31,13 +31,12 @@ default_feature_generation_params = {
 }
 
 
-# TODO: check if enough samples in epochs
 def run_checks(band_limits, sfreq, epoch_duration_s, agg_mode, window_name,
                domains):
     nyquist_freq = sfreq / 2
     assert np.sum(band_limits > nyquist_freq) == 0, \
         "Cannot have a frequency band limit higher than Nyquist frequency"\
-            .format(nyquist_freq)
+        .format(nyquist_freq)
     bin_size = 1./epoch_duration_s
     band_widths = [band_limit[1] - band_limit[0] for band_limit in band_limits]
     band_widths = np.array(band_widths)
@@ -62,7 +61,6 @@ def generate_features_of_one_file(signals: pd.DataFrame, sfreq: int,
                                   agg_mode: str, discrete_wavelet: str,
                                   continuous_wavelet: str, band_overlap: bool,
                                   domains="all") -> pd.DataFrame:
-    band_limits = np.array(band_limits)
     # run checks / assertions
     run_checks(band_limits, sfreq, epoch_duration_s, agg_mode, window_name,
                domains)
@@ -89,7 +87,7 @@ def generate_features_of_one_file(signals: pd.DataFrame, sfreq: int,
     # inform and return if all epochs were removed
     if epochs.size == 0:
         logging.warning("removed all epochs due to outliers")
-        return None, None
+        return None
     # weight the samples by a window function
     weighted_epochs = apply_window_function(
         epochs=epochs, window_name=window_name)
