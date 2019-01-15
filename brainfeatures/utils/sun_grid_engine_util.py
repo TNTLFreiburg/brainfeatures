@@ -19,50 +19,33 @@ def determime_curr_file_id(data_set, file_id=None):
     return file_id
 
 
-def parse_run_args():
-    # args = [
-    #     ['bootstrap', [bool]],
-    #     ['C', [float]],
-    #     ['criterion', [str]],
-    #     ['eval_dir', [str]],
-    #     ['gamma', [float]],
-    #     ['max_depth', [int]],
-    #     ['max_features', [float, str]],
-    #     ['meta_feature_id', [int]],
-    #     ['min_samples_leaf', [float]],
-    #     ['min_samples_split', [float]],
-    #     ['model', [str]],
-    #     ['n_estimators', [int]],
-    #     ['n_folds_or_repetitions', [int]],
-    #     ['n_jobs', [int]],
-    #     ['n_recordings', [int]],
-    #     ['result_dir', [str]],
-    #     ['task', [str]],
-    #     ['train_dir', [str]]
-    # ]
-    args = [
-        ['bootstrap', bool],
-        ['C', float],
-        ['criterion', str],
-        ['eval_dir', str],
-        ['gamma', float],
-        ['max_depth', int],
-        ['max_features', str],
-        ['min_samples_leaf', int],
-        ['min_samples_split', int],
-        ['model', str],
-        ['n_estimators', int],
-        ['n_folds_or_repetitions', int],
-        ['n_jobs', int],
-        ['n_recordings', str],
-        ['result_dir', str],
-        ['task', str],
-        ['train_dir', str]
-    ]
+def custom_parse(variables, arg):
+    try:
+        variables[arg] = int(variables[arg])
+    except:
+        variables[arg] = None
+    return variables
 
+
+def parse_run_args():
     parser = argparse.ArgumentParser()
-    for arg, type_ in args:
-        parser.add_argument("--" + arg, type=type_, required=False)
+    parser.add_argument('--bootstrap', dest='bootstrap', action='store_true')
+    parser.add_argument('--no-bootstrap', dest='bootstrap', action='store_false')
+    parser.add_argument("--criterion", required=True, type=str)
+    parser.add_argument("--eval_dir", required=True, type=str)
+    parser.add_argument("--gamma", required=True, type=float)
+    parser.add_argument("--max_depth", required=True, type=int)
+    parser.add_argument("--max_features", required=True, type=str)  # add own parsing
+    parser.add_argument("--min_samples_leaf", required=True, type=int)
+    parser.add_argument("--min_samples_split", required=True, type=int)
+    parser.add_argument("--model", required=True, type=str)
+    parser.add_argument("--n_estimators", required=True, type=int)
+    parser.add_argument("--n_folds_or_repetitions", required=True, type=int)
+    parser.add_argument("--n_jobs", required=True, type=int)
+    parser.add_argument("--n_recordings", required=True, type=str)  # add own parsing
+    parser.add_argument("--result_dir", required=True, type=str)
+    parser.add_argument("--task", required=True, type=str)
+    parser.add_argument("--train_dir", required=True, type=str)
 
     known, unknown = parser.parse_known_args()
     if unknown:
@@ -71,11 +54,9 @@ def parse_run_args():
         exit()
 
     known_vars = vars(known)
-
-    try:
-        known_vars["n_recordings"] = int(known_vars["n_recordings"])
-    except:
-        known_vars["n_recordings"] = None
+    custom_parse_args = ["n_recordings", "max_features"]
+    for arg in custom_parse_args:
+        known_vars = custom_parse(known_vars, arg)
 
     if known_vars["eval_dir"] in ["nan", "None"]:
         known_vars["eval_dir"] = None
