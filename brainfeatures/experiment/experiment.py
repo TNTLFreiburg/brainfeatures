@@ -9,7 +9,8 @@ import logging
 import time
 
 from brainfeatures.feature_generation.generate_features import \
-    generate_features_of_one_file, default_feature_generation_params
+    generate_features_of_one_file as feat_gen_f, \
+    default_feature_generation_params as feat_gen_params
 from brainfeatures.analysis.analyze import analyze_quality_of_predictions, \
     analyze_feature_importances, analyze_feature_correlations, \
     analyze_pca_components
@@ -24,6 +25,47 @@ from brainfeatures.decoding.decode import validate, final_evaluate
 
 
 class Experiment(object):
+    def __init__(
+            self,
+            devel_set,
+            clf=RandomForestClassifier(n_estimators=100),
+            metrics=accuracy_score,
+            eval_set=None,
+            n_jobs: int=1,
+            preproc_function: callable=None,
+            preproc_params: dict=None,
+            feature_generation_function: callable=feat_gen_f,
+            feature_generation_params: dict=feat_gen_params,
+            n_splits_or_repetitions: int=5,
+            shuffle_splits: bool=False,
+            pca_thresh: float=None,
+            scaler=StandardScaler(),
+            feature_vector_modifier: callable=None,
+            verbosity: str="INFO"):
+
+        self._data_sets = OrderedDict([("devel", devel_set), ("eval", eval_set)])
+        self._feat_gen_params = feature_generation_params
+        self._feature_modifier = feature_vector_modifier
+        self._feat_gen_f = feature_generation_function
+        self._n_runs = n_splits_or_repetitions
+        self._preproc_params = preproc_params
+        self._shuffle_splits = shuffle_splits
+        self._preproc_f = preproc_function
+        self._pca_thresh = pca_thresh
+        self._verbosity = verbosity
+        self._metrics = metrics
+        self._n_jobs = n_jobs
+        self._scaler = scaler
+        self._clf = clf
+
+        self._features = {"devel": [], "eval": []}
+        self._targets = {"devel": [], "eval": []}
+        self._cleaned = {"devel": [], "eval": []}
+        self.info = {"devel": {}, "eval": {}}
+        self._feature_names = None
+        self.performances = {}
+        self.predictions = {}
+        self.times = {}
     """
     Class that performs one feature-based experiment on development (and
     evaluation) set.
@@ -77,47 +119,6 @@ class Experiment(object):
     verbosity: str, optional
         verbosity level
     """
-    def __init__(
-            self,
-            devel_set,
-            clf=RandomForestClassifier(n_estimators=100),
-            metrics=accuracy_score,
-            eval_set=None,
-            n_jobs: int=1,
-            preproc_function: callable=None,
-            preproc_params: dict=None,
-            feature_generation_function: callable=generate_features_of_one_file,
-            feature_generation_params: dict=default_feature_generation_params,
-            n_splits_or_repetitions: int=5,
-            shuffle_splits: bool=False,
-            pca_thresh: float=None,
-            scaler=StandardScaler(),
-            feature_vector_modifier: callable=None,
-            verbosity: str="INFO"):
-
-        self._data_sets = OrderedDict([("devel", devel_set), ("eval", eval_set)])
-        self._feat_gen_params = feature_generation_params
-        self._feature_modifier = feature_vector_modifier
-        self._feat_gen_f = feature_generation_function
-        self._n_runs = n_splits_or_repetitions
-        self._preproc_params = preproc_params
-        self._shuffle_splits = shuffle_splits
-        self._preproc_f = preproc_function
-        self._pca_thresh = pca_thresh
-        self._verbosity = verbosity
-        self._metrics = metrics
-        self._n_jobs = n_jobs
-        self._scaler = scaler
-        self._clf = clf
-
-        self._features = {"devel": [], "eval": []}
-        self._targets = {"devel": [], "eval": []}
-        self._cleaned = {"devel": [], "eval": []}
-        self.info = {"devel": {}, "eval": {}}
-        self._feature_names = None
-        self.performances = {}
-        self.predictions = {}
-        self.times = {}
 
     def _run_checks(self):
         """
@@ -184,7 +185,7 @@ class Experiment(object):
 
     def _clean(self, set_name):
         """
-        Apply given cleaning rules to all examples in data set specified by
+        Apply given reprocessing rules to all examples in data set specified by
         set_name.
 
         Parameters
@@ -315,7 +316,8 @@ class Experiment(object):
 
     def _final_evaluate(self):
         """
-        Perform final evaluation on development and final evaluation set.
+        Perform final evaluation. Train on development and evaluate on final
+        evaluation set.
         """
         start = time.time()
         logging.info("Making predictions (final evaluation)")
@@ -330,6 +332,15 @@ class Experiment(object):
         self.times["final evaluation"] = time.time() - start
 
     def _decode(self, set_name):
+        """
+        Run decoding on data specified by set_name, analyze the performance
+        and the features used.
+
+        Parameters
+        ----------
+        set_name: str
+            either "devel" or "eval"
+        """
         # TODELAY: impove feature vector modifier
         if self._feature_modifier is not None:
             self._features[set_name], self._feature_names =\
@@ -352,8 +363,13 @@ class Experiment(object):
 
     def _analyze_features(self, set_name):
         """
-        Perform analysis of features using correlation coefficient, principle
-        components and featue importances.
+        Perform analysis of features specified by set_name using correlation
+        coefficient, principle components and feature importances.
+
+        Parameters
+        ----------
+        set_name: str
+            either "devel" or "eval"
         """
         if set_name == "devel":
             set_name = "valid"
@@ -366,7 +382,7 @@ class Experiment(object):
                 self.info[set_name]["pca_components"])
             self.info[set_name].update({"pca_features": max_variance_features})
 
-        # if using random forest (default), analyze feature_importances
+        # if using random forest and not pca, analyze feature_importances
         if self._pca_thresh is None \
                 and "feature_importances" in self.info[set_name]:
             analyze_feature_importances(
