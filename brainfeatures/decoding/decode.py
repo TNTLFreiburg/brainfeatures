@@ -203,6 +203,7 @@ def tune(X, y, clf, random_grid, n_iter, n_splits=5, shuffle_splits=False,
     return res
 
 
+# TODO: merge with final evaluate?
 def validate(X, y, clf, n_splits, shuffle_splits,
              scaler=StandardScaler(), pca_thresh=None):
     """ do special cross-validation: split data in n_splits, evaluate
@@ -249,7 +250,8 @@ def validate(X, y, clf, n_splits, shuffle_splits,
                 feature_importances, ignore_index=True)
         # move id to first column?
         if pca_components is not None:
-            pca_components["id"] = pd.Series([fold_id] * len(pca_components), index=pca_components.index)
+            pca_components["id"] = pd.Series([fold_id] * len(pca_components),
+                                             index=pca_components.index)
             all_pca_components = all_pca_components.append(
                 pca_components, ignore_index=True)
 
@@ -262,6 +264,7 @@ def validate(X, y, clf, n_splits, shuffle_splits,
             "train": train_predictions_by_fold}, {"valid": info}
 
 
+# TODO: merge with validate?
 # TODO: set random state?
 def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
                    scaler=StandardScaler(), pca_thresh=None):
@@ -291,14 +294,24 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
         predictions_train, predictions, feature_importances, pca_components = \
             decode_once(X, X_eval, y, clf, scaler, pca_thresh)
         predictions_df = create_df_from_predictions(
-            repetition_id, predictions, y_eval)
+            repetition_id, predictions, y_eval, eval_groups)
         predictions_by_repetition = predictions_by_repetition.append(
             predictions_df)
 
-        if all_feature_importances.size > 0:
-            info.update({"feature_importances": all_feature_importances})
-        if all_pca_components.size > 0:
-            info.update({"pca_components": all_pca_components})
+        if feature_importances is not None:
+            all_feature_importances = all_feature_importances.append(
+                feature_importances, ignore_index=True)
+        # move id to first column?
+        if pca_components is not None:
+            pca_components["id"] = pd.Series([repetition_id] * len(pca_components),
+                                             index=pca_components.index)
+            all_pca_components = all_pca_components.append(
+                pca_components, ignore_index=True)
+
+    if all_feature_importances.size > 0:
+        info.update({"feature_importances": all_feature_importances})
+    if all_pca_components.size > 0:
+        info.update({"pca_components": all_pca_components})
 
     return {"eval": predictions_by_repetition}, \
            {"eval": {"feature_importances": all_feature_importances}}
