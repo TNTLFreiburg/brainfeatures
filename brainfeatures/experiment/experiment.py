@@ -20,6 +20,7 @@ from brainfeatures.decoding.decode import validate, final_evaluate
 # TODO: free memory? how much memory is needed?
 # TODO: split devel into train/test before cleaning/feature generation?
 # TODO: make sure getting panads data frames from data set
+# TODO: plot electrode importances as colormap on the head scheme
 
 
 class Experiment(object):
@@ -208,7 +209,7 @@ class Experiment(object):
         self.times.setdefault("cleaning", {}).update(
             {devel_or_eval: time.time() - start})
 
-    def _load_cleaned_or_features(self, devel_or_eval, clean_or_features):
+    def _load(self, devel_or_eval, clean_or_features):
         """
         Load cleaned signals or features from data set specified by
         devel_or_eval.
@@ -301,28 +302,23 @@ class Experiment(object):
         devel_or_eval: str
             either "devel" or "eval"
         """
+        performances_to_analyze = []
         if devel_or_eval == "devel":
-            valid_or_final_evaluation = "validation"
-            logging.info("Computing performances ({})".format(
-                valid_or_final_evaluation))
-            for train_or_devel in ["train", "devel"]:
-                if train_or_devel == "devel":
-                    train_or_devel = "valid"
-                performances = analyze_quality_of_predictions(
-                    self.predictions[train_or_devel], self._metrics)
-                self.performances.update({train_or_devel: performances})
-                logging.info("Achieved in average\n{}\n on {} set.".format(
-                    self.performances[train_or_devel].mean().to_string(), train_or_devel))
-        # remove duplicate code
+            performances_to_analyze.extend(["train", "devel"])
         else:
-            valid_or_final_evaluation = "final evaluation"
+            performances_to_analyze.extend(["eval"])
+
+        for train_or_devel_or_eval in performances_to_analyze:
+            if train_or_devel_or_eval == "devel":
+                train_or_devel_or_eval = "valid"
             logging.info("Computing performances ({})".format(
-                valid_or_final_evaluation))
+                train_or_devel_or_eval))
             performances = analyze_quality_of_predictions(
-                self.predictions[devel_or_eval], self._metrics)
-            self.performances.update({devel_or_eval: performances})
+                self.predictions[train_or_devel_or_eval], self._metrics)
+            self.performances.update({train_or_devel_or_eval: performances})
             logging.info("Achieved in average\n{}\n on {} set.".format(
-                self.performances[devel_or_eval].mean().to_string(), valid_or_final_evaluation))
+                self.performances[train_or_devel_or_eval].mean().to_string(),
+                train_or_devel_or_eval))
 
     def _final_evaluate(self):
         """
@@ -340,7 +336,7 @@ class Experiment(object):
         self.info.update(eval_info)
         self.times["final evaluation"] = time.time() - start
 
-    def _run_valid_or_eval(self, devel_or_eval):
+    def _run(self, devel_or_eval):
         # TODELAY: impove feature vector modifier
         if self._feature_vector_modifier is not None:
             self._features[devel_or_eval], self._feature_labels =\
@@ -357,6 +353,30 @@ class Experiment(object):
             self._final_evaluate()
         if self._metrics is not None:
             self._analyze_performance(devel_or_eval)
+        self._analyze_features(devel_or_eval)
+
+    def _analyze_features(self, devel_or_eval):
+        """
+        Perform analysis of features using correlation coefficient, principle
+        components and featue importances.
+        """
+        if devel_or_eval == "devel":
+            devel_or_eval = "valid"
+        # always analyze correlation of features
+        # analyze_feature_correlations(self._features[devel_or_eval])
+
+        # if using pca, analyze principal components
+        if self._pca_thresh is not None:
+            max_variance_features = analyze_pca_components(
+                self.info[devel_or_eval]["pca_components"])
+            self.info[devel_or_eval].update(
+                {"pca_features": max_variance_features})
+
+        # if using random forest (default), analyze feature_importances
+        if self._pca_thresh is None \
+                and "feature_importances" in self.info[devel_or_eval]:
+            analyze_feature_importances(
+                self.info[devel_or_eval]["feature_importances"])
 
     def run(self):
         """
@@ -377,38 +397,14 @@ class Experiment(object):
 
             if do_features:
                 if not do_clean:
-                    self._load_cleaned_or_features(devel_or_eval, "clean")
+                    self._load(devel_or_eval, "clean")
                 self._generate_features(devel_or_eval)
 
             if not do_clean and not do_features:
-                self._load_cleaned_or_features(devel_or_eval, "features")
+                self._load(devel_or_eval, "features")
 
             if do_predictions:
-                self._run_valid_or_eval(devel_or_eval)
+                self._run(devel_or_eval)
 
         today, now = date.today(), datetime.time(datetime.now())
         logging.info("Finished on {} at {}.".format(today, now))
-
-    # TODO: add a plotting/analysis function?
-    def plot(self, out_dir=None):
-        """
-        Perform analysis of features.
-        """
-        # do we make analysis on eval set? seems wrong
-        # always analyze correlation of features
-        analyze_feature_correlations(self._features["devel"],
-                                     out_dir)
-
-        # if using random forest (default), analyze its feature_importances
-        if "feature_importances" in self.info["devel"]:
-            analyze_feature_importances(
-                self.info["devel"]["feature_importances"], out_dir)
-            if "eval" in self._data_sets:
-                analyze_feature_importances(
-                    self.info["eval"]["feature_importances"], out_dir)
-
-        if self._pca_thresh is not None:
-            analyze_pca_components(self.info["devel"], out_dir)
-
-        # TODO: generate confusioin matrices, roc auc score, roc auc curves
-        # raise NotImplementedError
