@@ -3,17 +3,17 @@ import pandas as pd
 import logging
 
 from brainfeatures.feature_generation.generate_features import \
-    generate_features_of_one_file
+    generate_features_of_one_file, default_feature_generation_params
 from brainfeatures.utils.file_util import pandas_store_as_h5
 from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
 from brainfeatures.utils.sun_grid_engine_util import \
     determime_curr_file_id
 
 
-def process_one_file(data_set, file_id, out_dir, epoch_duration_s,
+def process_one_file(data_set, file_id, out_dir, domains, epoch_duration_s,
                      max_abs_val, window_name, band_limits,
                      agg_mode, discrete_wavelet, continuous_wavelet,
-                     band_overlap, domains):
+                     band_overlap):
     file_name = data_set.file_names[file_id]
     signals, sfreq, pathological = data_set[file_id]
     age = data_set.ages[file_id]
@@ -53,15 +53,6 @@ def generate_features_main():
     train_or_eval = "train"
     in_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/clean/full/resampy0.2.1_clipafter/v2.0.0/edf/"+train_or_eval+"/"
     out_dir = in_dir.replace("clean", "feats/unagged")
-    max_abs_val = 800
-    epoch_duration_s = 6
-    window_name = "blackmanharris"
-    band_limits = [[0, 2], [2, 4],  [4, 8], [8, 13],
-                   [13, 18],  [18, 24], [24, 30], [30, 50]]
-    agg_mode = None
-    discrete_wavelet = "db4"
-    continuous_wavelet = "morl"
-    band_overlap = True
     domains = "all"
     run_on_cluster = True
 
@@ -82,10 +73,8 @@ def generate_features_main():
         logging.info("cleaning all files sequentially")
 
     for file_id in file_ids:
-        process_one_file(tuh_abnormal, file_id, out_dir,
-                         epoch_duration_s, max_abs_val, window_name,
-                         band_limits, agg_mode, discrete_wavelet,
-                         continuous_wavelet, band_overlap, domains)
+        process_one_file(tuh_abnormal, file_id, out_dir, domains,
+                         **default_feature_generation_params)
 
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('finished on {} at {}'.format(today, now))
