@@ -18,7 +18,6 @@ from brainfeatures.utils.data_util import assemble_overlapping_band_limits
 
 
 default_feature_generation_params = {
-    # TODO: make this 6s?! for comparison with networks
     "epoch_duration_s": 6,
     "max_abs_val": 800,
     "window_name": "blackmanharris",
@@ -34,7 +33,7 @@ default_feature_generation_params = {
 def run_checks(band_limits, sfreq, epoch_duration_s, agg_mode, window_name,
                domains):
     nyquist_freq = sfreq / 2
-    assert np.sum(band_limits > nyquist_freq) == 0, \
+    assert np.sum(np.array(band_limits) > nyquist_freq) == 0, \
         "Cannot have a frequency band limit higher than Nyquist frequency"\
         .format(nyquist_freq)
     bin_size = 1./epoch_duration_s
