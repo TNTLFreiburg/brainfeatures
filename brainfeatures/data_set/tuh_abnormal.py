@@ -7,7 +7,7 @@ from brainfeatures.data_set.abstract_data_set import DataSet
 from brainfeatures.utils.file_util import natural_key, \
     parse_age_and_gender_from_edf_header, \
     mne_load_signals_and_fs_from_edf, property_in_path
-from brainfeatures.cleaning.rules import reject_too_long_recording
+from brainfeatures.preprocessing.rules import reject_too_long_recording
 
 
 # check whether this can be replaced by natural key
@@ -76,6 +76,8 @@ class TuhAbnormal(DataSet):
         self.sfreqs = []
         self.ages = []
 
+        assert data_path.endswith("/"), "data path has to end with '/'"
+        assert extension.startswith("."), "extension has to start with '.'"
         if self.subset == "eval":
             assert self.max_recording_mins is None, "do not reject eval recordings"
 
@@ -155,14 +157,15 @@ class TuhAbnormal(DataSet):
         if self.extension == ".edf":
             signals, sfreq = mne_load_signals_and_fs_from_edf(
                 file_, self.channels, self.ch_name_pattern)
-            return signals, sfreq, label
         # preprocessed tuh data / features
-        elif self.extension == ".h5":
-            data = pd.read_hdf(file_, key="data")
-            x_dim, y_dim = data.shape
+        else:
+            assert self.extension == ".h5", "unknown data format"
+            signals = pd.read_hdf(file_, key="data")
+            x_dim, y_dim = signals.shape
             if x_dim > y_dim:
-                data = data.T
-            return data, self.sfreqs[index], label
+                signals = signals.T
+            sfreq = self.sfreqs[index]
+        return signals, sfreq, label
 
     def __len__(self):
         return len(self.file_names)
