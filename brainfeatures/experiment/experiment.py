@@ -250,7 +250,7 @@ class Experiment(object):
             self._feat_gen_f = partial(self._feat_gen_f, **self._feat_gen_params)
 
         feature_matrix = Parallel(n_jobs=self._n_jobs)\
-            (delayed(self._feat_gen_f) (example, self.info[set_name]["sfreq"])
+            (delayed(self._feat_gen_f)(example, self.info[set_name]["sfreq"])
                 for example in self._cleaned[set_name])
 
         for i, feature_vector in enumerate(feature_matrix):
@@ -259,7 +259,7 @@ class Experiment(object):
                     self._feature_names = list(feature_vector.columns)
                 self._features[set_name].append(feature_vector)
             # important: if feature generation fails, and therefore feature
-            # vector is None remove according label!
+            # vector is None, remove according label!
             else:
                 del self._targets[set_name][i]
                 logging.warning("removed example {} from labels".format(i))
