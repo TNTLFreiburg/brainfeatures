@@ -6,7 +6,8 @@ import resampy
 
 from brainfeatures.utils.file_util import pandas_store_as_h5, \
     replace_extension
-from brainfeatures.preprocessing.preprocess_raw import preprocess_one_file
+from brainfeatures.preprocessing.preprocess_raw import preprocess_one_file, \
+    default_preproc_params
 from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
 from brainfeatures.utils.sun_grid_engine_util import \
     determime_curr_file_id
@@ -14,7 +15,7 @@ from brainfeatures.utils.sun_grid_engine_util import \
 
 def process_one_file(data_set, file_id, in_dir, out_dir, sec_to_cut_start,
                      sec_to_cut_end, duration_recording_mins, resample_freq,
-                     max_abs_val, clip_before_resample):
+                     max_abs_val, clip_before_resample, dtype):
     file_name = data_set.file_names[file_id]
     logging.info("loading {}: {}".format(file_id, file_name))
     signals, sfreq, pathological = data_set[file_id]
@@ -34,7 +35,7 @@ def process_one_file(data_set, file_id, in_dir, out_dir, sec_to_cut_start,
         resample_freq=resample_freq,
         max_abs_val=max_abs_val,
         clip_before_resample=clip_before_resample)
-    preprocessed_df = pd.DataFrame(preprocessed_signals, index=channels)
+    preprocessed_df = pd.DataFrame(preprocessed_signals, index=channels, dtype=dtype)
 
     # also include sec_to_cut_start, duration_recording_mins etc in additional info?
     additional_info = {
@@ -70,15 +71,10 @@ def clean_main():
     logging.info("wrtiting to {}".format(out_dir))
 
     train_or_eval = "train"
-    sec_to_cut_start = 60
-    sec_to_cut_end = 0
-    duration_recording_mins = 20
-    max_recording_mins = 35
-    resample_freq = 100
-    max_abs_val = 800
     n_recordings = None
-    clip_before_resample = False
     run_on_cluster = True
+    max_recording_mins = 35
+    dtype = np.float32
 
     tuh_abnormal = TuhAbnormal(in_dir, ".edf", n_recordings=n_recordings,
                                max_recording_mins=max_recording_mins,
@@ -103,12 +99,9 @@ def clean_main():
             file_id=file_id,
             in_dir=in_dir,
             out_dir=out_dir,
-            sec_to_cut_start=sec_to_cut_start,
-            sec_to_cut_end=sec_to_cut_end,
-            duration_recording_mins=duration_recording_mins,
-            resample_freq=resample_freq,
-            max_abs_val=max_abs_val,
-            clip_before_resample=clip_before_resample)
+            dtype=dtype,
+            **default_preproc_params
+        )
 
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('finished on {} at {}'.format(today, now))
