@@ -44,7 +44,7 @@ def process_one_file(data_set, file_id, out_dir, domains, epoch_duration_s,
     pandas_store_as_h5(new_file_name, info_df, "info")
 
 
-def generate_features_main():
+if __name__ == "__main__":
     log = logging.getLogger()
     log.setLevel("INFO")
     today, now = date.today(), datetime.time(datetime.now())
@@ -78,7 +78,3 @@ def generate_features_main():
 
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('finished on {} at {}'.format(today, now))
-
-
-if __name__ == "__main__":
-    generate_features_main()

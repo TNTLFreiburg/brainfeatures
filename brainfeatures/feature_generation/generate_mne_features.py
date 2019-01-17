@@ -67,8 +67,7 @@ def generate_mne_features_of_one_file(signals, sfreq, selected_funcs,
     features = extract_features(
         epochs, sfreq, selected_funcs, funcs_params=func_params,
         return_as_df=True)
-    feature_labels = list(features.columns)
     # aggregate over dimension of epochs
     if agg_mode:
         features = agg_mode(features, axis=0)
-    return np.array(features), feature_labels
+    return features
