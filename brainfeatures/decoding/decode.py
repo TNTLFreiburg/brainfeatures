@@ -5,7 +5,7 @@ from sklearn.decomposition.pca import PCA
 import pandas as pd
 import numpy as np
 import logging
-# import rfpimp
+import rfpimp
 import time
 
 from brainfeatures.analysis.analyze import analyze_quality_of_predictions
@@ -76,7 +76,7 @@ def apply_pca(X_train, X_test, pca_thresh):
     return X_train, X_test, components
 
 
-def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
+def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
                 pca_thresh=None):
     """ take train and test set, maybe apply a scaler or pca, fit train set,
     predict test set, return predictions"""
@@ -85,11 +85,12 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
 
     feature_labels = list(X_train.columns)
 
-    feature_importances, pca_components = None, None
+    dict_of_dfs = {}
     if scaler is not None:
         X_train, X_test = apply_scaler(X_train, X_test, scaler)
     if pca_thresh is not None:
         X_train, X_test, pca_components = apply_pca(X_train, X_test, pca_thresh)
+        dict_of_dfs.update({"pca_components": pca_components})
     clf = clf.fit(X_train, y_train)
     # TODO: make sure principle components and feature importances are in the same order
     if hasattr(clf, "feature_importances_"):
@@ -98,14 +99,14 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
         # save random forest feature importances for analysis
         feature_importances = pd.DataFrame([clf.feature_importances_],
                                            columns=feature_labels)
+        dict_of_dfs.update({"feature_importances": feature_importances})
         # TODO: use rfpimp package to get more reliable feature importances
-        # print("now doing rfpimp importances")
-        # rfpimp_importances = rfpimp.permutation_importances(
-        #     clf, X_train, y_train, accuracy_score)
-        # info.update({"rfpimp_feature_importances": rfpimp_importances})
+        print("now doing rfpimp importances")
+        rfpimp_importances = rfpimp.importances(clf, X_test, y_test, sort=False).T
+        dict_of_dfs.update({"rfpimp_importances": rfpimp_importances})
 
     if hasattr(clf, "predict_proba"):
-        # save probabilities of positive class (equal to 1 - negaive class)
+        # save probabilities of positive class (equal to 1 - negative class)
         y_hat_train = clf.predict_proba(X_train)
         y_hat_train = y_hat_train[:, -1]
         y_hat = clf.predict_proba(X_test)
@@ -118,7 +119,7 @@ def decode_once(X_train, X_test, y_train, clf, scaler=StandardScaler(),
         # create labels
         y_hat = clf.predict(X_test)
         y_hat_train = clf.predict(X_train)
-    return y_hat_train, y_hat, feature_importances, pca_components
+    return y_hat_train, y_hat, dict_of_dfs
 
 
 def create_df_from_predictions(id_, predictions, y_true, groups=None):
@@ -209,6 +210,7 @@ def validate(X, y, clf, n_splits, shuffle_splits,
     """ do special cross-validation: split data in n_splits, evaluate
      model on every test fold using a different seed (=fold_id)"""
     feature_importances_by_fold = pd.DataFrame()
+    rfpimp_importances_by_fold = pd.DataFrame()
     train_predictions_by_fold = pd.DataFrame()
     pca_components_by_fold = pd.DataFrame()
     predictions_by_fold = pd.DataFrame()
@@ -231,8 +233,8 @@ def validate(X, y, clf, n_splits, shuffle_splits,
         X_train, y_train, X_test, y_test, train_groups, test_groups = \
             get_cropped_train_test(X, y, train_ind, test_ind, groups)
 
-        predictions_train, predictions, feature_importances, pca_components = \
-            decode_once(X_train, X_test, y_train, clf, scaler, pca_thresh)
+        predictions_train, predictions, dict_of_dfs = \
+            decode_once(X_train, X_test, y_train, y_test, clf, scaler, pca_thresh)
 
         predictions_df = create_df_from_predictions(
             fold_id, predictions, y_test, test_groups)
@@ -243,18 +245,22 @@ def validate(X, y, clf, n_splits, shuffle_splits,
         train_predictions_by_fold = train_predictions_by_fold.append(
             train_predictions_df)
 
-        if feature_importances is not None:
-            feature_importances_by_fold = feature_importances_by_fold.append(
-                feature_importances, ignore_index=True)
-        # move id to first column?
-        if pca_components is not None:
-            pca_components["id"] = pd.Series([fold_id] * len(pca_components),
-                                             index=pca_components.index)
-            pca_components_by_fold = pca_components_by_fold.append(
-                pca_components, ignore_index=True)
+        for key, value in dict_of_dfs.items():
+            if key == "feature_importances":
+                feature_importances_by_fold = feature_importances_by_fold.append(
+                    value, ignore_index=True)
+            elif key == "rfpimp_importances":
+                rfpimp_importances_by_fold = rfpimp_importances_by_fold.append(
+                    value, ignore_index=True)
+            elif key == "pca_components":
+                value["id"] = pd.Series([fold_id] * len(value), index=value.index)
+                pca_components_by_fold = pca_components_by_fold.append(
+                    value, ignore_index=True)
 
     if feature_importances_by_fold.size > 0:
         info.update({"feature_importances": feature_importances_by_fold})
+    if rfpimp_importances_by_fold.size > 0:
+        info.update({"rfpimp_importances": rfpimp_importances_by_fold})
     if pca_components_by_fold.size > 0:
         info.update({"pca_components": pca_components_by_fold})
 
@@ -268,9 +274,10 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
                    scaler=StandardScaler(), pca_thresh=None):
     """ do final evaluation on held-back evaluation set. this should only be
     done once """
-    feature_importances_by_fold = pd.DataFrame()
-    predictions_by_repetition = pd.DataFrame()
-    pca_components_by_fold = pd.DataFrame()
+    feature_importances_by_rep = pd.DataFrame()
+    rfpimp_importances_by_rep = pd.DataFrame()
+    pca_components_by_rep = pd.DataFrame()
+    predictions_by_rep = pd.DataFrame()
     info = {}
 
     eval_groups = []
@@ -289,30 +296,36 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
         #     clf.random_state = repetition_id
         #     logging.debug("set random state to {}".format(repetition_id))
 
-        predictions_train, predictions, feature_importances, pca_components = \
-            decode_once(X, X_eval, y, clf, scaler, pca_thresh)
+        predictions_train, predictions, dict_of_dfs = \
+            decode_once(X, X_eval, y, y_eval, clf, scaler, pca_thresh)
+
         predictions_df = create_df_from_predictions(
             repetition_id, predictions, y_eval, eval_groups)
-        predictions_by_repetition = predictions_by_repetition.append(
+
+        predictions_by_rep = predictions_by_rep.append(
             predictions_df)
 
-        if feature_importances is not None:
-            feature_importances_by_fold = feature_importances_by_fold.append(
-                feature_importances, ignore_index=True)
-        # move id to first column?
-        if pca_components is not None:
-            pca_components["id"] = pd.Series([repetition_id] * len(pca_components),
-                                             index=pca_components.index)
-            pca_components_by_fold = pca_components_by_fold.append(
-                pca_components, ignore_index=True)
+        for key, value in dict_of_dfs.items():
+            if key == "feature_importances":
+                feature_importances_by_rep = feature_importances_by_rep.append(
+                    value, ignore_index=True)
+            elif key == "rfpimp_importances":
+                rfpimp_importances_by_rep = rfpimp_importances_by_rep.append(
+                    value, ignore_index=True)
+            elif key == "pca_components":
+                value["id"] = pd.Series([repetition_id] * len(value), index=value.index)
+                pca_components_by_rep = pca_components_by_rep.append(
+                    value, ignore_index=True)
 
-    if feature_importances_by_fold.size > 0:
-        info.update({"feature_importances": feature_importances_by_fold})
-    if pca_components_by_fold.size > 0:
-        info.update({"pca_components": pca_components_by_fold})
+    if feature_importances_by_rep.size > 0:
+        info.update({"feature_importances": feature_importances_by_rep})
+    if rfpimp_importances_by_rep.size > 0:
+        info.update({"rfpimp_importances": feature_importances_by_rep})
+    if pca_components_by_rep.size > 0:
+        info.update({"pca_components": pca_components_by_rep})
 
-    return {"eval": predictions_by_repetition}, \
-           {"eval": {"feature_importances": feature_importances_by_fold}}
+    return {"eval": predictions_by_rep}, \
+           {"eval": info}
 
 
 def decode(train_set, clf, n_splits_or_repetitions, shuffle_splits,
