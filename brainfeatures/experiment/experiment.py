@@ -388,6 +388,12 @@ class Experiment(object):
             analyze_feature_importances(
                 self.info[set_name]["feature_importances"])
 
+        # if using random forest and not pca, analyze feature_importances
+        if self._pca_thresh is None \
+                and "rfpimp_importances" in self.info[set_name]:
+            analyze_feature_importances(
+                self.info[set_name]["rfpimp_importances"])
+
     def run(self):
         """
         Run complete experiment.
