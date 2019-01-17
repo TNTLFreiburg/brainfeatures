@@ -12,46 +12,71 @@ from brainfeatures.analysis.analyze import analyze_quality_of_predictions
 
 
 def get_X_y(data_set, agg_f=None):
-    """ read all data from the data set """
+    """ read all data from the data set. aggregate if wanted """
+    if agg_f is not None:
+        assert agg_f is callable, "agg_f has to be a callable"
     X, y = [], []
-    for i, (x, sfreq, label) in enumerate(data_set):
+    for x, sfreq, label in data_set:
         if agg_f is not None and hasattr(x[0][0], "__len__"):
-            x = (agg_f(x, axis=0))
+            x = agg_f(x, axis=0)
         X.append(x)
         y.append(label)
     y = np.array(y)
     return X, y
 
 
+def get_train_test(X, y, train_ind, test_ind):
+    """ split data and target wrt given train and test indeces """
+    assert not (set(train_ind) & set(test_ind)), "train and test set overlap!"
+    X = np.array(X)
+    y = np.array(y)
+    X_train = X[train_ind]
+    y_train = y[train_ind]
+    X_test = X[test_ind]
+    y_test = y[test_ind]
+    return X_train, y_train, X_test, y_test
+
+
 def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
     """ split cropped data and target wrt given test ind, s.t. no group is
     accidentally split """
-    assert len(X) == len(y)
-    assert not (set(train_ind) & set(test_ind)), \
-        "train set and test set overlap!"
-    unique_groups = np.unique(epoch_to_group_map)
-    unique_test_groups = np.array(unique_groups)[test_ind]
-    assert len(unique_groups) == len(X)
-    feature_labels = X[0].columns
+    assert len(X) == len(y), "number of examples and labels does not match"
+    assert not (set(train_ind) & set(test_ind)), "train and test set overlap!"
+    if hasattr(X, "columns"):
+        feature_labels = X.columns
+    else:
+        feature_labels = [str(i) for i in range(0, X.shape[-1])]
 
-    train_groups, test_groups = [], []
-    X_train, y_train, X_test, y_test = [], [], [], []
-    for trial_i in range(len(X)):
-        if trial_i in unique_test_groups:
-            X_test.extend(np.array(X[trial_i]))
-            y_test.extend([y[trial_i]] * len(X[trial_i]))
-            test_groups.extend([trial_i] * len(X[trial_i]))
-        else:
-            X_train.extend(np.array(X[trial_i]))
-            y_train.extend([y[trial_i]] * len(X[trial_i]))
-            train_groups.extend([trial_i] * len(X[trial_i]))
+    print(len(feature_labels))
+
+    unique_groups = []
+    for group in epoch_to_group_map:
+        if group not in unique_groups:
+            unique_groups.append(group)
+    unique_test_groups = np.array(unique_groups)[test_ind]
+    unique_train_groups = np.array(unique_groups)[train_ind]
+    assert len(unique_groups) == len(X)
+
+    X_test, y_test, test_groups = [], [], []
+    for trial_i in unique_test_groups:
+        X_test.extend(np.array(X[trial_i]))
+        y_test.extend([y[trial_i]] * len(X[trial_i]))
+        test_groups.extend([trial_i] * len(X[trial_i]))
+    print(len(X_test))
     X_test = pd.DataFrame(X_test, columns=feature_labels)
+
+    X_train, y_train, train_groups = [], [], []
+    for trial_i in unique_train_groups:
+        X_train.extend(np.array(X[trial_i]))
+        y_train.extend([y[trial_i]] * len(X[trial_i]))
+        train_groups.extend([trial_i] * len(X[trial_i]))
+    print(len(X_train))
     X_train = pd.DataFrame(X_train, columns=feature_labels)
     return X_train, y_train, X_test, y_test, train_groups, test_groups
 
 
 def apply_scaler(X_train, X_test, scaler=StandardScaler()):
-    """ fit and tranform a train set, transform a test set accordingly """
+    """ fit and transform a train set, transform a test set accordingly """
     feature_labels = X_train.columns
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
@@ -83,7 +108,7 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
     logging.debug("{} examples in train set, {} examples in test set".format(
         len(X_train), len(X_test)))
 
-    feature_labels = list(X_train.columns)
+    feature_labels = X_train.columns
 
     dict_of_dfs = {}
     if scaler is not None:
