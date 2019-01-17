@@ -674,10 +674,11 @@ Public License instead of this License.  But first, please read
 <http://www.gnu.org/philosophy/why-not-lgpl.html>.
 
 
+_______________________________________________________________________________
 This repository uses and adapts code from pyeeg 
 (https://github.com/forrestbao/pyeeg) and 
 PyWavelets (https://github.com/PyWavelets/pywt).
-Changes to pyeeg include adaptions to work with python3.5:
+Changes to pyeeg include adaptions to work with python3.5 to:
 - _embed_seq
 - dfa
 - fisher_info
@@ -688,6 +689,6 @@ Changes to pyeeg include adaptions to work with python3.5:
 - svd_entropy
 
 Changes to pywt include:
-- pywt function was copied and split into two individual functions.
+- pywt function was split into two individual functions.
   the first returns wavelet coefficients, the second is used optionally
   to compute frequecies.
