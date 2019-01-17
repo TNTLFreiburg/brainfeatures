@@ -1,14 +1,10 @@
-from sklearn.model_selection import KFold, ParameterSampler
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score
+from sklearn.model_selection import KFold
 from sklearn.decomposition.pca import PCA
 import pandas as pd
 import numpy as np
 import logging
 import rfpimp
-import time
-
-from brainfeatures.analysis.analyze import analyze_quality_of_predictions
 
 
 def get_X_y(data_set, agg_f=None):
@@ -47,8 +43,6 @@ def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
     else:
         feature_labels = [str(i) for i in range(0, X.shape[-1])]
 
-    print(len(feature_labels))
-
     unique_groups = []
     for group in epoch_to_group_map:
         if group not in unique_groups:
@@ -62,7 +56,6 @@ def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
         X_test.extend(np.array(X[trial_i]))
         y_test.extend([y[trial_i]] * len(X[trial_i]))
         test_groups.extend([trial_i] * len(X[trial_i]))
-    print(len(X_test))
     X_test = pd.DataFrame(X_test, columns=feature_labels)
 
     X_train, y_train, train_groups = [], [], []
@@ -70,7 +63,6 @@ def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
         X_train.extend(np.array(X[trial_i]))
         y_train.extend([y[trial_i]] * len(X[trial_i]))
         train_groups.extend([trial_i] * len(X[trial_i]))
-    print(len(X_train))
     X_train = pd.DataFrame(X_train, columns=feature_labels)
     return X_train, y_train, X_test, y_test, train_groups, test_groups
 
@@ -162,7 +154,6 @@ def create_df_from_predictions(id_, predictions, y_true, groups=None):
             row.update({"group": groups[i]})
         predictions_df = predictions_df.append(row, ignore_index=True)
     return predictions_df
-
 
 
 # TODO: merge with final evaluate?
