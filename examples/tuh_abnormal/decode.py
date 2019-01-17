@@ -5,6 +5,7 @@ from sklearn.svm import SVC, SVR
 import pandas as pd
 import numpy as np
 import logging
+import pickle
 import time
 import os
 
@@ -162,5 +163,6 @@ if __name__ == '__main__':
     run_time = end_time - start_time
     logging.info("Experiment runtime: {:.2f} sec".format(run_time))
 
+    pickle.dump(exp, open(kwargs["result_dir"] + "exp.pkl", "wb"))
     write_kwargs(kwargs)
     make_final_predictions()
