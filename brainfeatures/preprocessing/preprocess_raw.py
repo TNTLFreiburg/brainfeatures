@@ -18,8 +18,6 @@ default_preproc_params = {
 def preprocess_one_file(signals, fs, target, sec_to_cut_start, sec_to_cut_end,
                         duration_recording_mins, resample_freq, max_abs_val,
                         clip_before_resample=False):
-    channels = signals.index
-    signals = np.array(signals)
     # discard first seconds
     if sec_to_cut_start:
         signals = remove_start(signals, sec_to_cut_start, fs)
@@ -44,4 +42,4 @@ def preprocess_one_file(signals, fs, target, sec_to_cut_start, sec_to_cut_end,
         # clip values if desired
         if max_abs_val:
             signals = clip_values(signals, max_abs_val)
-    return pd.DataFrame(signals, index=channels), resample_freq, target
+    return signals, resample_freq, target
