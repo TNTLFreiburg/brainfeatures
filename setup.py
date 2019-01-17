@@ -35,7 +35,8 @@ setup(
 
     install_requires=['mne',  'numpy', 'pandas', 'scipy',
                       'resampy', 'matplotlib', 'h5py', 
-                      'pywavelets', 'joblib', 'scikit-learn'],
+                      'pywavelets', 'joblib', 'scikit-learn',
+                      'rfpimp'],
     #tests_require = [...]
 
     # See https://PyPI.python.org/PyPI?%3Aaction=list_classifiers
