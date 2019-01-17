@@ -16,8 +16,3 @@ Soon you will be able to run:
 .. code-block:: bash
 
   pip install brainfeatures
-
-
-Documentation
-=============
-Documentation will soon be avaible at `gemeinl.github.io/brainfeatures <gemeinl.github.io/brainfeatures>`_
