@@ -1,6 +1,6 @@
 import numpy as np
 
-from brainfeatures.cleaning.rules import reject_too_long_recording, \
+from brainfeatures.preprocessing.rules import reject_too_long_recording, \
     remove_start, remove_end, take_part, resample, clip_values
 
 
