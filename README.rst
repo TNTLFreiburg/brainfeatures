@@ -14,4 +14,4 @@ Installation
 
 .. code-block:: bash
 
-pip install --extra-index-url https://testpypi.python.org/pypi brainfeatures
+  pip install --extra-index-url https://testpypi.python.org/pypi brainfeatures
