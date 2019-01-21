@@ -15,6 +15,9 @@ def get_X_y(data_set, agg_f=None):
     for x, sfreq, label in data_set:
         if agg_f is not None and hasattr(x[0][0], "__len__"):
             x = agg_f(x, axis=0)
+        elif agg_f is not None and not hasattr(x[0][0], "__len__"):
+            logging.warning("Data seems to be aggregated already. "
+                            "Skipping aggregation.")
         X.append(x)
         y.append(label)
     y = np.array(y)
@@ -35,20 +38,26 @@ def get_train_test(X, y, train_ind, test_ind):
 
 def get_cropped_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
     """ split cropped data and target wrt given test ind, s.t. no group is
-    accidentally split """
+    accidentally split
+
+    X : list of 2-dim pandas df
+    y: list of targets
+    """
     assert len(X) == len(y), "number of examples and labels does not match"
     assert not (set(train_ind) & set(test_ind)), "train and test set overlap!"
-    if hasattr(X, "columns"):
-        feature_labels = X.columns
+    if hasattr(X[0], "columns"):
+        feature_labels = X[0].columns
     else:
-        feature_labels = [str(i) for i in range(0, X.shape[-1])]
+        feature_labels = [str(i) for i in range(0, X[0].shape[-1])]
 
     unique_groups = []
     for group in epoch_to_group_map:
         if group not in unique_groups:
             unique_groups.append(group)
-    unique_test_groups = np.array(unique_groups)[test_ind]
-    unique_train_groups = np.array(unique_groups)[train_ind]
+    unique_groups = np.array(unique_groups)
+
+    unique_test_groups = unique_groups[test_ind]
+    unique_train_groups = unique_groups[train_ind]
     assert len(unique_groups) == len(X)
 
     X_test, y_test, test_groups = [], [], []
@@ -117,10 +126,10 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
         feature_importances = pd.DataFrame([clf.feature_importances_],
                                            columns=feature_labels)
         dict_of_dfs.update({"feature_importances": feature_importances})
-        # TODO: use rfpimp package to get more reliable feature importances
-        print("now doing rfpimp importances")
-        rfpimp_importances = rfpimp.importances(clf, X_test, y_test, sort=False).T
-        dict_of_dfs.update({"rfpimp_importances": rfpimp_importances})
+
+    # rfpimp performances can be applied to any scikit-learn model!
+    rfpimp_importances = rfpimp.importances(clf, X_test, y_test, sort=False).T
+    dict_of_dfs.update({"rfpimp_importances": rfpimp_importances})
 
     if hasattr(clf, "predict_proba"):
         # save probabilities of positive class (equal to 1 - negative class)
