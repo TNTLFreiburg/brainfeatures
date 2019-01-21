@@ -128,8 +128,8 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
         dict_of_dfs.update({"feature_importances": feature_importances})
 
     # rfpimp performances can be applied to any scikit-learn model!
-    rfpimp_importances = rfpimp.importances(clf, X_test, y_test, sort=False).T
-    dict_of_dfs.update({"rfpimp_importances": rfpimp_importances})
+    # rfpimp_importances = rfpimp.importances(clf, X_test, y_test, sort=False).T
+    # dict_of_dfs.update({"rfpimp_importances": rfpimp_importances})
 
     if hasattr(clf, "predict_proba"):
         # save probabilities of positive class (equal to 1 - negative class)
