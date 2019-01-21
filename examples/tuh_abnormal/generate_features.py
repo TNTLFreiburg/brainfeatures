@@ -1,3 +1,4 @@
+from joblib import Parallel, delayed
 from datetime import datetime, date
 import pandas as pd
 import logging
@@ -44,17 +45,12 @@ def process_one_file(data_set, file_id, out_dir, domains, epoch_duration_s,
     pandas_store_as_h5(new_file_name, info_df, "info")
 
 
-if __name__ == "__main__":
+def generate_features_main(in_dir, out_dir, train_or_eval, domains,
+                           run_on_cluster, feat_gen_params, n_jobs):
     log = logging.getLogger()
     log.setLevel("INFO")
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('started on {} at {}'.format(today, now))
-
-    train_or_eval = "train"
-    in_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/clean/full/resampy0.2.1_clipafter/v2.0.0/edf/"+train_or_eval+"/"
-    out_dir = in_dir.replace("clean", "feats/unagged")
-    domains = "all"
-    run_on_cluster = True
 
     tuh_abnormal = TuhAbnormal(in_dir, ".h5", subset=train_or_eval)
     tuh_abnormal.load()
@@ -62,19 +58,34 @@ if __name__ == "__main__":
     # should be cleaned
     if run_on_cluster:
         logging.info("using file id based on sge array job id")
-        file_ids = [determime_curr_file_id(tuh_abnormal, file_id=None)]
+        file_id = determime_curr_file_id(tuh_abnormal, file_id=None)
 
-        if type(file_ids[0]) is not int:
-            logging.error(file_ids)
+        if type(file_id) is not int:
+            logging.error(file_id)
             exit()
 
-    else:
-        file_ids = range(len(tuh_abnormal))
-        logging.info("cleaning all files sequentially")
-
-    for file_id in file_ids:
         process_one_file(tuh_abnormal, file_id, out_dir, domains,
-                         **default_feature_generation_params)
+                         **feat_gen_params)
+
+    else:
+        file_ids = range(800, len(tuh_abnormal))
+        Parallel(n_jobs=n_jobs)(
+            delayed(process_one_file)
+            (tuh_abnormal, file_id, out_dir, domains, **feat_gen_params) for
+            file_id in file_ids)
 
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('finished on {} at {}'.format(today, now))
+
+
+if __name__ == "__main__":
+    data_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/pre/v2.0.0/edf/train/"
+    generate_features_main(
+        in_dir=data_dir,
+        out_dir=data_dir.replace("pre", "feats"),
+        train_or_eval="train",
+        domains="all",
+        run_on_cluster=False,
+        feat_gen_params=default_feature_generation_params,
+        n_jobs=1
+    )

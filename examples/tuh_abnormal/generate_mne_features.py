@@ -1,5 +1,6 @@
 from mne_features.univariate import get_univariate_funcs
 from mne_features.bivariate import get_bivariate_funcs
+from joblib import Parallel, delayed
 from datetime import datetime, date
 import pandas as pd
 import logging
@@ -12,8 +13,8 @@ from brainfeatures.utils.sun_grid_engine_util import \
     determime_curr_file_id
 
 
-def process_one_file(data_set, file_id, in_dir, out_dir, epoch_duration_s,
-                     max_abs_val, agg_mode):
+def process_one_file(data_set, file_id, out_dir, epoch_duration_s,
+                     max_abs_val, agg_mode, feat_gen_params):
     file_name = data_set.file_names[file_id]
     signals, sfreq, pathological = data_set[file_id]
     age = data_set.ages[file_id]
@@ -23,7 +24,7 @@ def process_one_file(data_set, file_id, in_dir, out_dir, epoch_duration_s,
     selected_funcs.update(get_bivariate_funcs(sfreq))
     feature_df = generate_mne_features_of_one_file(
         signals, sfreq, selected_funcs,
-        default_mne_feature_generation_params, epoch_duration_s,
+        feat_gen_params, epoch_duration_s,
         max_abs_val, agg_mode)
 
     # also include band limits, epoch_duration_s, etc in additional info?
@@ -46,37 +47,47 @@ def process_one_file(data_set, file_id, in_dir, out_dir, epoch_duration_s,
     pandas_store_as_h5(new_file_name, info_df, "info")
 
 
-if __name__ == "__main__":
+def generate_mne_features_main(in_dir, out_dir, train_or_eval, run_on_cluster,
+                               epoch_duration_s, max_abs_val, agg_mode,
+                               feat_gen_params, n_jobs):
     log = logging.getLogger()
     log.setLevel("INFO")
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('started on {} at {}'.format(today, now))
 
-    in_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/clean/full/resampy0.2.1_clipafter/v2.0.0/edf/train/"
-    out_dir = in_dir.replace("clean", "mne_feats/unagged")
-    max_abs_val = 800
-    epoch_duration_s = 6
-    agg_mode = None
-    run_on_cluster = True
-
-    tuh_abnormal = TuhAbnormal(in_dir, ".h5")
+    tuh_abnormal = TuhAbnormal(in_dir, ".h5", subset=train_or_eval)
     tuh_abnormal.load()
     # use this to run on cluster. otherwise just give the id of the file that
     # should be cleaned
     if run_on_cluster:
-        file_id = determime_curr_file_id(tuh_abnormal, file_id=None)
+        logging.info("using file id based on sge array job id")
+        file_ids = [determime_curr_file_id(tuh_abnormal, file_id=None)]
 
-        if type(file_id) is not int:
-            logging.error(file_id)
+        if type(file_ids[0]) is not int:
+            logging.error(file_ids)
             exit()
-
-        process_one_file(tuh_abnormal, file_id, in_dir, out_dir,
-                         epoch_duration_s, max_abs_val, agg_mode)
-
     else:
-        for file_id in range(len(tuh_abnormal)):
-            process_one_file(tuh_abnormal, file_id, in_dir, out_dir,
-                             epoch_duration_s, max_abs_val, agg_mode)
+        file_ids = range(len(tuh_abnormal))
+
+    Parallel(n_jobs=n_jobs)(delayed(process_one_file)
+                            (tuh_abnormal, file_id, out_dir, epoch_duration_s,
+                             max_abs_val, agg_mode, **feat_gen_params)
+                            for file_id in file_ids)
 
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('finished on {} at {}'.format(today, now))
+
+
+if __name__ == "__main__":
+    data_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/pre/v2.0.0/edf/train/"
+    generate_mne_features_main(
+        in_dir=data_dir,
+        out_dir=data_dir.replace("pre", "feats"),
+        train_or_eval="train",
+        run_on_cluster=False,
+        feat_gen_params=default_mne_feature_generation_params,
+        epoch_duration_s=6,
+        max_abs_val=800,
+        agg_mode=None,
+        n_jobs=1
+    )

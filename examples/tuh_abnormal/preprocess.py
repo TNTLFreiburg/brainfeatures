@@ -1,8 +1,8 @@
+from joblib import Parallel, delayed
 from datetime import datetime, date
 import pandas as pd
 import numpy as np
 import logging
-import resampy
 
 from brainfeatures.utils.file_util import pandas_store_as_h5, \
     replace_extension
@@ -13,9 +13,9 @@ from brainfeatures.utils.sun_grid_engine_util import \
     determime_curr_file_id
 
 
-def process_one_file(data_set, file_id, in_dir, out_dir, sec_to_cut_start,
+def process_one_file(data_set, file_id, in_dir, out_dir, dtype, sec_to_cut_start,
                      sec_to_cut_end, duration_recording_mins, resample_freq,
-                     max_abs_val, clip_before_resample, dtype):
+                     max_abs_val, clip_before_resample):
     file_name = data_set.file_names[file_id]
     logging.info("loading {}: {}".format(file_id, file_name))
     signals, sfreq, pathological = data_set[file_id]
@@ -56,25 +56,16 @@ def process_one_file(data_set, file_id, in_dir, out_dir, sec_to_cut_start,
     logging.info("wrote clean signals to {}".format(new_file_name))
 
 
-def clean_main():
+def clean_main(in_dir, out_dir, train_or_eval, n_recordings, run_on_cluster,
+               max_recording_mins, dtype, n_jobs):
     """ runs either one file on cluster (id specified by array job id) or all
     files locally """
     log = logging.getLogger()
     log.setLevel("INFO")
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('started on {} at {}'.format(today, now))
-
-    in_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/raw/v2.0.0/edf/train/"
-    out_dir = in_dir.replace("raw", "clean/full/resampy" + resampy.__version__ + "_clipafter")
-
     logging.info("reading from {}".format(in_dir))
     logging.info("wrtiting to {}".format(out_dir))
-
-    train_or_eval = "train"
-    n_recordings = None
-    run_on_cluster = True
-    max_recording_mins = 35
-    dtype = np.float32
 
     tuh_abnormal = TuhAbnormal(in_dir, ".edf", n_recordings=n_recordings,
                                max_recording_mins=max_recording_mins,
@@ -93,19 +84,23 @@ def clean_main():
         file_ids = range(len(tuh_abnormal))
         logging.info("cleaning all files sequentially")
 
-    for file_id in file_ids:
-        process_one_file(
-            data_set=tuh_abnormal,
-            file_id=file_id,
-            in_dir=in_dir,
-            out_dir=out_dir,
-            dtype=dtype,
-            **default_preproc_params
-        )
+    Parallel(n_jobs=n_jobs)(delayed(process_one_file)
+                            (tuh_abnormal, file_id, in_dir, out_dir, dtype,
+                             **default_preproc_params) for file_id in file_ids)
 
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('finished on {} at {}'.format(today, now))
 
 
 if __name__ == "__main__":
-    clean_main()
+    data_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/raw/v2.0.0/edf/train/"
+    clean_main(
+        in_dir=data_dir,
+        out_dir=data_dir.replace("raw", "pre"),
+        train_or_eval="train",
+        n_recordings=None,
+        run_on_cluster=False,
+        max_recording_mins=35,
+        dtype=np.float32,
+        n_jobs=1
+    )
