@@ -25,7 +25,15 @@ def reject_windows_with_outliers(epochs: np.ndarray,
     return outliers
 
 
-def apply_window_function(epochs: np.ndarray, window_name: str="blackmanharris") -> np.ndarray:
+def reject_windows_with_constant_measurements(epochs: np.ndarray) -> np.ndarray:
+    """ reject windows that contain sequences of measurements without
+    differences """
+    constants = np.sum(np.diff(epochs) == 0, axis=(1, 2))
+    return constants
+
+
+def apply_window_function(epochs: np.ndarray, window_name: str="blackmanharris") \
+        -> np.ndarray:
     """ apply blackmanharris window function """
     assert window_name in ["boxcar", "hamming", "hann", "blackmanharris",
                            "flattop"], \
