@@ -56,7 +56,7 @@ def process_one_file(data_set, file_id, in_dir, out_dir, dtype, sec_to_cut_start
     logging.info("wrote clean signals to {}".format(new_file_name))
 
 
-def clean_main(in_dir, out_dir, train_or_eval, n_recordings, run_on_cluster,
+def preprocess_main(in_dir, out_dir, train_or_eval, n_recordings, run_on_cluster,
                max_recording_mins, dtype, n_jobs):
     """ runs either one file on cluster (id specified by array job id) or all
     files locally """
@@ -82,7 +82,6 @@ def clean_main(in_dir, out_dir, train_or_eval, n_recordings, run_on_cluster,
         file_ids = [file_id]
     else:
         file_ids = range(len(tuh_abnormal))
-        logging.info("cleaning all files sequentially")
 
     Parallel(n_jobs=n_jobs)(delayed(process_one_file)
                             (tuh_abnormal, file_id, in_dir, out_dir, dtype,
@@ -94,7 +93,7 @@ def clean_main(in_dir, out_dir, train_or_eval, n_recordings, run_on_cluster,
 
 if __name__ == "__main__":
     data_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/raw/v2.0.0/edf/train/"
-    clean_main(
+    preprocess_main(
         in_dir=data_dir,
         out_dir=data_dir.replace("raw", "pre"),
         train_or_eval="train",

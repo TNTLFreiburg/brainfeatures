@@ -68,7 +68,7 @@ def generate_features_main(in_dir, out_dir, train_or_eval, domains,
                          **feat_gen_params)
 
     else:
-        file_ids = range(800, len(tuh_abnormal))
+        file_ids = range(0, len(tuh_abnormal))
         Parallel(n_jobs=n_jobs)(
             delayed(process_one_file)
             (tuh_abnormal, file_id, out_dir, domains, **feat_gen_params) for
@@ -80,6 +80,7 @@ def generate_features_main(in_dir, out_dir, train_or_eval, domains,
 
 if __name__ == "__main__":
     data_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/pre/v2.0.0/edf/train/"
+    default_feature_generation_params["agg_mode"] = None  # "median" / "mean"...
     generate_features_main(
         in_dir=data_dir,
         out_dir=data_dir.replace("pre", "feats"),

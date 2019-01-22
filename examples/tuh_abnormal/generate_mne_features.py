@@ -67,12 +67,11 @@ def generate_mne_features_main(in_dir, out_dir, train_or_eval, run_on_cluster,
             logging.error(file_ids)
             exit()
     else:
-        file_ids = range(len(tuh_abnormal))
-
-    Parallel(n_jobs=n_jobs)(delayed(process_one_file)
-                            (tuh_abnormal, file_id, out_dir, epoch_duration_s,
-                             max_abs_val, agg_mode, **feat_gen_params)
-                            for file_id in file_ids)
+        file_ids = range(0, len(tuh_abnormal))
+        Parallel(n_jobs=n_jobs)(delayed(process_one_file)
+                                (tuh_abnormal, file_id, out_dir, epoch_duration_s,
+                                 max_abs_val, agg_mode, **feat_gen_params)
+                                for file_id in file_ids)
 
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('finished on {} at {}'.format(today, now))
