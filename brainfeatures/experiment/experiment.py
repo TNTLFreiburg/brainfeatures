@@ -41,9 +41,11 @@ class Experiment(object):
             pca_thresh: float=None,
             scaler=StandardScaler(),
             feature_vector_modifier: callable=None,
+            estimate_feature_importances: bool=True,
             verbosity: str="INFO"):
 
         self._data_sets = OrderedDict([("devel", devel_set), ("eval", eval_set)])
+        self._do_importances = estimate_feature_importances
         self._feat_gen_params = feature_generation_params
         self._feature_modifier = feature_vector_modifier
         self._feat_gen_f = feature_generation_function
@@ -279,12 +281,8 @@ class Experiment(object):
         validation_results, info = validate(
             self._features["devel"], self._targets["devel"], self._clf,
             self._n_runs, self._shuffle_splits, self._scaler,
-            self._pca_thresh)
+            self._pca_thresh, self._do_importances)
         self.predictions.update(validation_results)
-        if "pca_components" in info["valid"]:
-            info["valid"]["pca_components"].columns = self._feature_names + ["id"]
-        elif "feature_importances" in info["valid"]:
-            info["valid"]["feature_importances"].columns = self._feature_names
         self.info.update(info)
         self.times["validation"] = time.time() - start
 
@@ -326,7 +324,7 @@ class Experiment(object):
         eval_results, eval_info = final_evaluate(
             self._features["devel"], self._targets["devel"],
             self._features["eval"], self._targets["eval"], self._clf,
-            self._n_runs, self._scaler, self._pca_thresh)
+            self._n_runs, self._scaler, self._pca_thresh, self._do_importances)
         self.predictions.update(eval_results)
         self.info.update(eval_info)
         self.times["final evaluation"] = time.time() - start
@@ -378,21 +376,20 @@ class Experiment(object):
 
         # if using pca, analyze principal components
         if self._pca_thresh is not None:
-            max_variance_features = analyze_pca_components(
+            pca_features = analyze_pca_components(
                 self.info[set_name]["pca_components"])
-            self.info[set_name].update({"pca_features": max_variance_features})
+            self.info[set_name].update({"pca_features": pca_features})
 
-        # if using random forest and not pca, analyze feature_importances
-        if self._pca_thresh is None \
-                and "feature_importances" in self.info[set_name]:
-            analyze_feature_importances(
-                self.info[set_name]["feature_importances"])
+        if self._pca_thresh is None:
+            # if using random forest and not pca, analyze feature_importances
+            if "feature_importances" in self.info[set_name]:
+                analyze_feature_importances(
+                    self.info[set_name]["feature_importances"])
 
-        # if using random forest and not pca, analyze feature_importances
-        if self._pca_thresh is None \
-                and "rfpimp_importances" in self.info[set_name]:
-            analyze_feature_importances(
-                self.info[set_name]["rfpimp_importances"])
+            # if using random forest and not pca, analyze feature_importances
+            if "rfpimp_importances" in self.info[set_name]:
+                analyze_feature_importances(
+                    self.info[set_name]["rfpimp_importances"])
 
     def run(self):
         """
@@ -406,7 +403,7 @@ class Experiment(object):
         self._run_checks()
         do_clean = self._preproc_f is not None
         do_features = self._feat_gen_f is not None
-        do_predictions = (self._clf is not None and self._features["devel"])
+        do_predictions = self._clf is not None and self._features["devel"]
         for set_name in self._data_sets.keys():
             if do_clean:
                 self._clean(set_name)

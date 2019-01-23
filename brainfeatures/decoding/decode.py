@@ -103,7 +103,7 @@ def apply_pca(X_train, X_test, pca_thresh):
 
 
 def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
-                pca_thresh=None):
+                pca_thresh=None, do_importances=True):
     """ take train and test set, maybe apply a scaler or pca, fit train set,
     predict test set, return predictions"""
     logging.debug("{} examples in train set, {} examples in test set".format(
@@ -119,7 +119,7 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
         dict_of_dfs.update({"pca_components": pca_components})
     clf = clf.fit(X_train, y_train)
     # TODO: make sure principle components and feature importances are in the same order
-    if hasattr(clf, "feature_importances_"):
+    if do_importances and hasattr(clf, "feature_importances_"):
         if pca_thresh is not None:
             feature_labels = list(pca_components.index)
         # save random forest feature importances for analysis
@@ -127,9 +127,10 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
                                            columns=feature_labels)
         dict_of_dfs.update({"feature_importances": feature_importances})
 
-    # rfpimp performances can be applied to any scikit-learn model!
-    # rfpimp_importances = rfpimp.importances(clf, X_test, y_test, sort=False).T
-    # dict_of_dfs.update({"rfpimp_importances": rfpimp_importances})
+    if do_importances:
+        # rfpimp performances can be applied to any scikit-learn model!
+        rfpimp_importances = rfpimp.importances(clf, X_test, y_test, sort=False).T
+        dict_of_dfs.update({"rfpimp_importances": rfpimp_importances})
 
     if hasattr(clf, "predict_proba"):
         # save probabilities of positive class (equal to 1 - negative class)
@@ -167,7 +168,7 @@ def create_df_from_predictions(id_, predictions, y_true, groups=None):
 
 # TODO: merge with final evaluate?
 def validate(X, y, clf, n_splits, shuffle_splits,
-             scaler=StandardScaler(), pca_thresh=None):
+             scaler=StandardScaler(), pca_thresh=None, do_importances=True):
     """ do special cross-validation: split data in n_splits, evaluate
      model on every test fold using a different seed (=fold_id)"""
     feature_importances_by_fold = pd.DataFrame()
@@ -195,7 +196,8 @@ def validate(X, y, clf, n_splits, shuffle_splits,
             get_cropped_train_test(X, y, train_ind, test_ind, groups)
 
         predictions_train, predictions, dict_of_dfs = \
-            decode_once(X_train, X_test, y_train, y_test, clf, scaler, pca_thresh)
+            decode_once(X_train, X_test, y_train, y_test, clf, scaler,
+                        pca_thresh, do_importances)
 
         predictions_df = create_df_from_predictions(
             fold_id, predictions, y_test, test_groups)
@@ -232,7 +234,7 @@ def validate(X, y, clf, n_splits, shuffle_splits,
 # TODO: merge with validate?
 # TODO: set random state?
 def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
-                   scaler=StandardScaler(), pca_thresh=None):
+                   scaler=StandardScaler(), pca_thresh=None, do_importances=True):
     """ do final evaluation on held-back evaluation set. this should only be
     done once """
     feature_importances_by_rep = pd.DataFrame()
@@ -258,7 +260,8 @@ def final_evaluate(X, y, X_eval, y_eval, clf, n_repetitions,
         #     logging.debug("set random state to {}".format(repetition_id))
 
         predictions_train, predictions, dict_of_dfs = \
-            decode_once(X, X_eval, y, y_eval, clf, scaler, pca_thresh)
+            decode_once(X, X_eval, y, y_eval, clf, scaler, pca_thresh,
+                        do_importances)
 
         predictions_df = create_df_from_predictions(
             repetition_id, predictions, y_eval, eval_groups)
