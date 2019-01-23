@@ -124,7 +124,6 @@ def generate_features_of_one_file(signals: pd.DataFrame, sfreq: int,
         band_epochs = split_into_epochs(band_signals, sfreq=sfreq,
                                         epoch_duration_s=epoch_duration_s)
         band_epochs = band_epochs[outlier_mask == False]
-        band_epochs = band_epochs[constant_mask == False]
         generators.update({
             "PhaseFeatureGenerator": PhaseFeatureGenerator(
                 agg=agg_mode, bands=band_limits, elecs=channels)})
