@@ -368,11 +368,12 @@ def hurst_exponent(epochs, axis, **kwargs):
         N = X.size
         T = _np.arange(1, N + 1)
         Y = _np.cumsum(X)
+        print(Y[:5])
         Ave_T = Y / T
+        print(Ave_T[:5])
 
         S_T = _np.zeros(N)
         R_T = _np.zeros(N)
-
         for i in range(N):
             S_T[i] = _np.std(X[:i + 1])
             X_T = Y - T * Ave_T[i]
@@ -384,12 +385,16 @@ def hurst_exponent(epochs, axis, **kwargs):
         for i in range(1, len(S_T)):
             if _np.diff(S_T)[i - 1] != 0:
                 break
-        assert i < 10, "rethink it!"
+        for j in range(1, len(R_T)):
+            if _np.diff(R_T)[j - 1] != 0:
+                break
+        k = max(i, j)
+        assert k < 10, "rethink it!"
 
-        R_S = R_T[i:] / S_T[i:]
+        R_S = R_T[k:] / S_T[k:]
         R_S = _np.log(R_S)
 
-        n = _np.log(T)[i:]
+        n = _np.log(T)[k:]
         A = _np.column_stack((n, _np.ones(n.size)))
         [m, c] = _np.linalg.lstsq(A, R_S, rcond=None)[0]
         H = m
