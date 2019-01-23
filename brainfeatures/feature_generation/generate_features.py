@@ -5,7 +5,7 @@ import logging
 
 from brainfeatures.utils.data_util import split_into_epochs, \
     apply_window_function, filter_to_frequency_bands, \
-    reject_windows_with_outliers, reject_windows_with_constant_measurements
+    reject_windows_with_outliers
 from brainfeatures.feature_generation.wavelet_feature_generator \
     import WaveletFeatureGenerator
 from brainfeatures.feature_generation.frequency_feature_generator \
@@ -86,13 +86,6 @@ def generate_features_of_one_file(signals: pd.DataFrame, sfreq: int,
     # inform and return if all epochs were removed
     if epochs.size == 0:
         logging.warning("removed all epochs due to outliers")
-        return None
-    # reject windows with constant measurements
-    constant_mask = reject_windows_with_constant_measurements(epochs)
-    epochs = epochs[constant_mask == False]
-    # inform and return if all epochs were removed
-    if epochs.size == 0:
-        logging.warning("removed all epochs due to conastant measurements")
         return None
     # weight the samples by a window function
     weighted_epochs = apply_window_function(

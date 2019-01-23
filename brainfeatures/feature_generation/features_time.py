@@ -378,13 +378,17 @@ def hurst_exponent(epochs, axis, **kwargs):
             X_T = Y - T * Ave_T[i]
             R_T[i] = _np.ptp(X_T[:i + 1])
 
-        # !!! this fixes the invalid value encountered in true_divide error !!!
-        R_S = R_T[1:] / S_T[1:]
-        R_S = _np.concatenate(([_np.nan], R_S))
+        # check for indifferent measurements at time series start
+        # they could be introduced by resampling and have to be removed
+        # if not removed, it will cause division by std = 0
+        for i in range(1, len(S_T)):
+            if _np.diff(S_T)[i - 1] != 0:
+                break
 
-        # R_S = R_T / S_T
-        R_S = _np.log(R_S)[1:]
-        n = _np.log(T)[1:]
+        R_S = R_T[i:] / S_T[i:]
+        R_S = _np.log(R_S)
+
+        n = _np.log(T)[i:]
         A = _np.column_stack((n, _np.ones(n.size)))
         [m, c] = _np.linalg.lstsq(A, R_S, rcond=None)[0]
         H = m

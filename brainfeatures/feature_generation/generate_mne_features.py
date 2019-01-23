@@ -3,8 +3,7 @@ import numpy as np
 import logging
 
 from brainfeatures.utils.data_util import split_into_epochs, \
-    reject_windows_with_outliers, assemble_overlapping_band_limits, \
-    reject_windows_with_constant_measurements
+    reject_windows_with_outliers, assemble_overlapping_band_limits
 
 BAND_LIMITS = np.array(
         [[0, 2], [2, 4],  [4, 8], [8, 13],
@@ -62,11 +61,6 @@ def generate_mne_features_of_one_file(signals, sfreq, selected_funcs,
     epochs = epochs[mask == False]
     if epochs.size == 0:
         logging.warning("removed all epochs due to outliers")
-        return None, None
-    mask = reject_windows_with_constant_measurements(epochs)
-    epochs = epochs[mask == False]
-    if epochs.size == 0:
-        logging.warning("removed all epochs due to constant measurements")
         return None, None
 
     # generate features implemented in mne_features
