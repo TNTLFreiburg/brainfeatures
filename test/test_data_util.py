@@ -21,16 +21,16 @@ def test_reject_windows_with_outliers():
     fs = 100
     signals = np.random.rand(2 * 60 * fs).reshape(2, -1)
     epochs = split_into_epochs(signals, fs, 20)
-    result = reject_windows_with_outliers(epochs, 1)
-    assert len(epochs) == len(result)
-    assert np.sum(result) == 0
+    mask = reject_windows_with_outliers(epochs, 1)
+    assert len(epochs) == len(mask)
+    assert np.sum(mask) == 0
 
     epochs[0][0][0] += 1
     epochs[-1][-1][-1] *= -1
     epochs[-1][-1][-1] -= 1
-    result = reject_windows_with_outliers(epochs, 1)
-    assert np.sum(result) == 2
-    np.testing.assert_array_equal(epochs[~result], [epochs[1]])
+    mask = reject_windows_with_outliers(epochs, 1)
+    assert np.sum(mask) == 2
+    np.testing.assert_array_equal(epochs[~mask], [epochs[1]])
 
 
 def test_assemble_overlapping_band_limits():

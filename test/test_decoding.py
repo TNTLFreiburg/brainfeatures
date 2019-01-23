@@ -25,7 +25,7 @@ def test_validate():
 
     X = X[:, np.newaxis]
     result, info = validate(X, y, clf, 2, shuffle_splits=False,
-                            scaler=None, pca_thresh=None)
+                            scaler=None, pca_thresh=None, do_importances=True)
     preds = result["valid"]
     y_pred = preds[preds.id == 0]["y_pred"]
     np.testing.assert_array_equal(y_pred, expected_1)
@@ -136,6 +136,6 @@ def test_decode_once():
                                                 "f", "g", "h", "i", "j"])
     result_train, result, info = decode_once(
         X_train, X_test, y[train_ind], y[test_ind],
-        clf, scaler=None, pca_thresh=None)
+        clf, scaler=None, pca_thresh=None, do_importances=False)
     np.testing.assert_array_equal(expected, result)
-    assert "feature_importances" in info
+    assert "feature_importances" not in info
