@@ -25,14 +25,7 @@ def reject_windows_with_outliers(epochs: np.ndarray,
     return outliers
 
 
-def reject_windows_with_constant_measurements(epochs: np.ndarray) -> np.ndarray:
-    """ reject windows that contain sequences of measurements without
-    differences """
-    constants = np.sum(np.diff(epochs) == 0, axis=(1, 2))
-    return constants
-
-
-def apply_window_function(epochs: np.ndarray, window_name: str="blackmanharris") \
+def apply_window_function(epochs: np.ndarray, window_name: str="blackmanharris")\
         -> np.ndarray:
     """ apply blackmanharris window function """
     assert window_name in ["boxcar", "hamming", "hann", "blackmanharris",
@@ -46,6 +39,7 @@ def apply_window_function(epochs: np.ndarray, window_name: str="blackmanharris")
 
 def filter_to_frequency_band(signals: np.ndarray, sfreq: int, lower: int,
                              upper: int) -> np.ndarray:
+    """ filter signals to frequency range defined by upper and lower """
     return filter_data(data=signals, sfreq=sfreq, l_freq=lower, h_freq=upper,
                        verbose='error')
 
@@ -61,12 +55,14 @@ def filter_to_frequency_bands(signals: np.ndarray, bands: list,
         # if lowpass frequency is nyquist frequency, don't make a lowpass
         if upper >= sfreq/2:
             upper = None
-        curr_band_signals = filter_to_frequency_band(signals, sfreq, lower, upper)
+        curr_band_signals = filter_to_frequency_band(signals, sfreq, lower,
+                                                     upper)
         band_signals[band_id] = curr_band_signals
     return band_signals
 
 
 def assemble_overlapping_band_limits(non_overlapping_bands: list) -> np.ndarray:
+    """ create 50% overlapping frequency bands from non-overlapping bands """
     overlapping_bands = []
     for i in range(len(non_overlapping_bands) - 1):
         band_i = non_overlapping_bands[i]
