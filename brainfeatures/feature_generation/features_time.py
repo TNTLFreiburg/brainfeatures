@@ -368,9 +368,7 @@ def hurst_exponent(epochs, axis, **kwargs):
         N = X.size
         T = _np.arange(1, N + 1)
         Y = _np.cumsum(X)
-        print(Y[:5])
         Ave_T = Y / T
-        print(Ave_T[:5])
 
         S_T = _np.zeros(N)
         R_T = _np.zeros(N)
