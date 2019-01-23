@@ -27,6 +27,10 @@ def process_one_file(data_set, file_id, out_dir, epoch_duration_s,
         feat_gen_params, epoch_duration_s,
         max_abs_val, agg_mode)
 
+    if feature_df is None:
+        logging.error("feature generation failed for {}".format(file_id))
+        return
+
     # also include band limits, epoch_duration_s, etc in additional info?
     additional_info = {
         "sfreq": sfreq,
