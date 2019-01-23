@@ -384,6 +384,7 @@ def hurst_exponent(epochs, axis, **kwargs):
         for i in range(1, len(S_T)):
             if _np.diff(S_T)[i - 1] != 0:
                 break
+        assert i < 10, "rethink it!"
 
         R_S = R_T[i:] / S_T[i:]
         R_S = _np.log(R_S)
