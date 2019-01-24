@@ -17,11 +17,8 @@ from brainfeatures.analysis.analyze import analyze_quality_of_predictions, \
 
 from brainfeatures.decoding.decode import validate, final_evaluate
 
-# TODO: move agg mode out of feature generators to experiment? -> moves a lot of data around
-# TODO: free memory? how much memory is needed?
-# TODO: split devel into train/test before cleaning/feature generation?
-# TODO: make sure getting panads data frames from data set
-# TODO: plot electrode importances as colormap on the head scheme
+log = logging.getLogger(__name__)
+log.setLevel("INFO")
 
 
 class Experiment(object):
@@ -298,13 +295,11 @@ class Experiment(object):
         """
         set_names = []
         if set_name == "devel":
-            set_names.extend(["train", "devel"])
+            set_names.extend(["train", "valid"])
         else:
             set_names.extend(["eval"])
 
         for set_name in set_names:
-            if set_name == "devel":
-                set_name = "valid"
             logging.info("Computing performances ({})".format(set_name))
             performances = analyze_quality_of_predictions(
                 self.predictions[set_name], self._metrics)
@@ -353,6 +348,7 @@ class Experiment(object):
         if set_name == "devel":
             self._validate()
         else:
+            assert set_name == "eval", "unknown set name"
             self._final_evaluate()
 
         if self._metrics is not None:
@@ -372,7 +368,10 @@ class Experiment(object):
         if set_name == "devel":
             set_name = "valid"
         # always analyze correlation of features
-        # analyze_feature_correlations(self._features[set_name])
+        feature_correlations = analyze_feature_correlations(
+            self._features[set_name])
+        self.info[set_name].update({"feature_correlations":
+                                        feature_correlations})
 
         # if using pca, analyze principal components
         if self._pca_thresh is not None:
@@ -395,8 +394,6 @@ class Experiment(object):
         """
         Run complete experiment.
         """
-        log = logging.getLogger()
-        log.setLevel("INFO")
         today, now = date.today(), datetime.time(datetime.now())
         logging.info('Started on {} at {}'.format(today, now))
 
