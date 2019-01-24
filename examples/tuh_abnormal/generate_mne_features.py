@@ -51,7 +51,7 @@ def process_one_file(data_set, file_id, out_dir, epoch_duration_s,
     pandas_store_as_h5(new_file_name, info_df, "info")
 
 
-def generate_mne_features_main(in_dir, out_dir, train_or_eval, run_on_cluster,
+def generate_mne_features_main(data_set, out_dir, run_on_cluster,
                                epoch_duration_s, max_abs_val, agg_mode,
                                feat_gen_params, n_jobs):
     log = logging.getLogger()
@@ -59,21 +59,19 @@ def generate_mne_features_main(in_dir, out_dir, train_or_eval, run_on_cluster,
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('started on {} at {}'.format(today, now))
 
-    tuh_abnormal = TuhAbnormal(in_dir, ".h5", subset=train_or_eval)
-    tuh_abnormal.load()
     # use this to run on cluster. otherwise just give the id of the file that
     # should be cleaned
     if run_on_cluster:
         logging.info("using file id based on sge array job id")
-        file_ids = [determime_curr_file_id(tuh_abnormal, file_id=None)]
+        file_ids = [determime_curr_file_id(data_set, file_id=None)]
 
         if type(file_ids[0]) is not int:
             logging.error(file_ids)
             exit()
     else:
-        file_ids = range(0, len(tuh_abnormal))
+        file_ids = range(0, len(data_set))
         Parallel(n_jobs=n_jobs)(delayed(process_one_file)
-                                (tuh_abnormal, file_id, out_dir, epoch_duration_s,
+                                (data_set, file_id, out_dir, epoch_duration_s,
                                  max_abs_val, agg_mode, **feat_gen_params)
                                 for file_id in file_ids)
 
@@ -83,10 +81,11 @@ def generate_mne_features_main(in_dir, out_dir, train_or_eval, run_on_cluster,
 
 if __name__ == "__main__":
     data_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/pre/v2.0.0/edf/train/"
+    tuh_abnormal = TuhAbnormal(data_dir, ".h5", subset="train")
+    tuh_abnormal.load()
     generate_mne_features_main(
-        in_dir=data_dir,
+        data_set=tuh_abnormal,
         out_dir=data_dir.replace("pre", "feats"),
-        train_or_eval="train",
         run_on_cluster=False,
         feat_gen_params=default_mne_feature_generation_params,
         epoch_duration_s=6,
