@@ -295,7 +295,7 @@ class Experiment(object):
         """
         set_names = []
         if set_name == "devel":
-            set_names.extend(["train", "valid"])
+            set_names.extend(["train", "devel"])
         else:
             set_names.extend(["eval"])
 
