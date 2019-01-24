@@ -129,6 +129,10 @@ class TuhAbnormal(DataSet):
                 gender = info["gender"]
                 self.sfreqs.append(info["sfreq"])
 
+            # encode gender string as integer
+            assert gender in ["M", "F"], "unknown gender"
+            gender = 0 if gender == "M" else 1
+
             targets = {"pathological": pathological, "age": age, "gender": gender}
             self.targets.append(targets[self.target])
             self.ages.append(age)

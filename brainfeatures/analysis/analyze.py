@@ -47,11 +47,13 @@ def analyze_quality_of_predictions(predictions, metrics=accuracy_score):
         metrics = [metrics]
 
     df = pd.DataFrame()
+    # id is for the repetition / fold
     for i, id_df in predictions.groupby("id"):
         id_df = id_df.drop("id", axis=1)
         y_true = id_df.y_true
         y_pred = id_df.y_pred
 
+        # group is for the number of crops in a trial
         # average crop predictions
         mean_y_true = id_df.groupby("group").mean().y_true
         mean_y_pred = id_df.groupby("group").mean().y_pred
