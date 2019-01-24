@@ -300,6 +300,8 @@ class Experiment(object):
             set_names.extend(["eval"])
 
         for set_name in set_names:
+            if set_name == "devel":
+                set_name = "valid"
             logging.info("Computing performances ({})".format(set_name))
             performances = analyze_quality_of_predictions(
                 self.predictions[set_name], self._metrics)
@@ -365,14 +367,13 @@ class Experiment(object):
         set_name: str
             either "devel" or "eval"
         """
-        if set_name == "devel":
-            set_name = "valid"
         # always analyze correlation of features
         feature_correlations = analyze_feature_correlations(
             self._features[set_name])
         self.info[set_name].update({"feature_correlations":
-                                        feature_correlations})
-
+                                    feature_correlations})
+        if set_name == "devel":
+            set_name = "valid"
         # if using pca, analyze principal components
         if self._pca_thresh is not None:
             pca_features = analyze_pca_components(
