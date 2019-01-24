@@ -75,21 +75,33 @@ def analyze_quality_of_predictions(predictions, metrics=accuracy_score):
 
 def analyze_feature_correlations(feature_matrices):
     """ analyze feature correlations """
+    # TODO: add outer correlation?
+    # TODO: compare to rfpimp correlation map?
     # check whether feature matrices are 2d or 3d
     # compute inner / outer correlations
     # compute correlations by class
-    # visualize correlation map(s)
-    # check if matrix is n_recs x n_windows x n_features
-    # or n_recs x n_features
+    crop_crounts = [len(d) for d in feature_matrices]
+    feature_matrices = pd.concat(feature_matrices, axis=0, ignore_index=True)
     feature_labels = feature_matrices.columns
-    do_cropped = hasattr(feature_matrices[0][0], "__len__")
-    if do_cropped:
-        feature_matrices = [np.mean(m, axis=0) for m in feature_matrices]
-        feature_matrices = np.array(feature_matrices)
+
+    # average over crops
+    groups = []
+    for i in range(len(crop_crounts)):
+        groups.extend(crop_crounts[i] * [i])
+    assert len(groups) == len(feature_matrices)
+    feature_matrices["group"] = pd.Series(groups)
+    feature_matrices = feature_matrices.groupby("group").mean()
+
     # compute feature correlations
     correlations, pvalues = spearmanr(feature_matrices)
-    # TODO: plot correlation maps of different domains, create ticks and ticklabels
-    plot_feature_correlations(correlations, feature_labels)
+
+    domains = [label.split("_")[0] for label in feature_labels]
+    counts = [domains.count(domain) for domain in np.unique(domains)]
+    ticks_at = np.cumsum([0] + counts)
+    ticks_at2 = np.cumsum(counts)
+    plot_feature_correlations(correlations, xticks=ticks_at[:-1],
+                              xticklabels=feature_labels, yticks=ticks_at2,
+                              yticklabels=feature_labels)
     return correlations
 
 

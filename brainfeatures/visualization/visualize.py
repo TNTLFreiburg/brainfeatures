@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
-# import seaborn as sns
 import numpy as np
 import os
-# sns.set(color_codes=True)
 
 
 ELECTRODE_NAMES = sorted(
@@ -40,6 +38,9 @@ ELECTRODE_LOCATIONS = {
 }
 
 
+# TODO: plot electrode importances as colormap on the head scheme
+
+
 # TODO: plot correlation maps of different domains, create ticks and ticklabels
 def plot_feature_correlations(data, title='', xticks=None, xticklabels=None,
                               yticks=None, yticklabels=None, offset=1):
@@ -50,8 +51,8 @@ def plot_feature_correlations(data, title='', xticks=None, xticklabels=None,
 
     plt.imshow(
         data,
-        cmap="PRGn",
-        interpolation="nearest",
+        cmap="RdBu_r",
+        interpolation=None,
         vmin=-1,
         vmax=1,
         aspect="equal"
