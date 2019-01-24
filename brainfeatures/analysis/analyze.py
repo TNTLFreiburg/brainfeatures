@@ -99,7 +99,7 @@ def analyze_pca_components(pca_components):
     max_variance_features = []
     for i, g in pca_components.groupby("id"):
         g = g.drop("id", axis=1)
-        d = np.argmax(np.abs(g.as_matrix()), axis=1)
+        d = np.argmax(np.abs(g.values), axis=1)
         max_variance_features.append(list(feature_labels[d]))
     return max_variance_features
 
