@@ -98,7 +98,8 @@ def apply_pca(X_train, X_test, pca_thresh):
     logging.info("reduced dimensionality from {} to {}"
                  .format(shape_orig, shape_reduced))
     rows = ["PC-{}".format(i) for i in range(len(pca.components_))]
-    components = pd.DataFrame(pca.components_, columns=feature_labels, index=rows)
+    components = pd.DataFrame(pca.components_, columns=feature_labels,
+                              index=rows)
     return X_train, X_test, components
 
 
@@ -118,20 +119,19 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
         X_train, X_test, pca_components = apply_pca(X_train, X_test, pca_thresh)
         dict_of_dfs.update({"pca_components": pca_components})
     clf = clf.fit(X_train, y_train)
-    # TODO: make sure principle components and feature importances are in the same order
-    if do_importances and hasattr(clf, "feature_importances_"):
-        if pca_thresh is not None:
+    # TODO: for svm set probability to True?
+    if do_importances:
+        if pca_thresh is not None and hasattr(clf, "feature_importances_"):
             feature_labels = list(pca_components.index)
         # save random forest feature importances for analysis
-        feature_importances = pd.DataFrame([clf.feature_importances_],
-                                           columns=feature_labels)
+        feature_importances = pd.DataFrame(
+            [clf.feature_importances_], columns=feature_labels)
         dict_of_dfs.update({"feature_importances": feature_importances})
 
-    if do_importances:
         # rfpimp performances can be applied to any scikit-learn model!
-        rfpimp_importances = rfpimp.importances(clf, pd.DataFrame(X_test),
-                                                pd.DataFrame(y_test),
-                                                sort=False)
+        # rfpimp want everything as data frame. make sure it gets it
+        rfpimp_importances = rfpimp.importances(
+            clf, pd.DataFrame(X_test), pd.DataFrame(y_test), sort=False)
         dict_of_dfs.update({"rfpimp_importances": rfpimp_importances.T})
 
     if hasattr(clf, "predict_proba"):
