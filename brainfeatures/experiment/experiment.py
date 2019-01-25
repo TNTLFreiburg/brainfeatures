@@ -182,7 +182,7 @@ class Experiment(object):
             self._cleaned.pop("eval")
             self.info.pop("eval")
 
-    def _clean(self, set_name):
+    def _preprocess(self, set_name):
         """
         Apply given reprocessing rules to all examples in data set specified by
         set_name.
@@ -197,15 +197,15 @@ class Experiment(object):
         if self._preproc_params is not None:
             self._preproc_f = partial(self._preproc_f, **self._preproc_params)
 
-        x_pre_fs_pre_y_pre = Parallel(n_jobs=self._n_jobs)\
+        x_fs_y_pre = Parallel(n_jobs=self._n_jobs)\
             (delayed(self._preproc_f)(x, fs, y)
                 for (x, fs, y) in self._data_sets[set_name])
 
-        for (x_pre, fs_pre, y_pre) in x_pre_fs_pre_y_pre:
-            if "sfreq" not in self.info[set_name]:
-                self.info[set_name]["sfreq"] = fs_pre
+        for (x_pre, fs_pre, y_pre) in x_fs_y_pre:
             self._cleaned[set_name].append(x_pre)
             self._targets[set_name].append(y_pre)
+        if "sfreq" not in self.info[set_name]:
+            self.info[set_name]["sfreq"] = fs_pre
         self.times.setdefault("cleaning", {}).update(
             {set_name: time.time() - start})
 
@@ -224,12 +224,13 @@ class Experiment(object):
         start = time.time()
         logging.info("Loading {} ({})".format(set_name, set_state))
         for (x, fs, y) in self._data_sets[set_name]:
-            if "sfreq" not in self.info[set_name]:
-                self.info[set_name]["sfreq"] = fs
-            if self._feature_names is None:
-                self._feature_names = list(x.columns)
             getattr(self, "_" + set_state)[set_name].append(x)
             self._targets[set_name].append(y)
+        # store feature names and sampling frequency
+        if "sfreq" not in self.info[set_name]:
+            self.info[set_name]["sfreq"] = fs
+        if self._feature_names is None:
+            self._feature_names = list(x.columns)
         self.times.setdefault("loading", {}).update(
             {set_name: time.time() - start})
 
@@ -247,21 +248,19 @@ class Experiment(object):
         logging.info("Generating features ({})".format(set_name))
         if self._feat_gen_params is not None:
             self._feat_gen_f = partial(self._feat_gen_f, **self._feat_gen_params)
-
         feature_matrix = Parallel(n_jobs=self._n_jobs)\
             (delayed(self._feat_gen_f)(example, self.info[set_name]["sfreq"])
                 for example in self._cleaned[set_name])
-
         for i, feature_vector in enumerate(feature_matrix):
             if feature_vector is not None:
-                if self._feature_names is None:
-                    self._feature_names = list(feature_vector.columns)
                 self._features[set_name].append(feature_vector)
             # important: if feature generation fails, and therefore feature
             # vector is None, remove according label!
             else:
                 del self._targets[set_name][i]
                 logging.warning("removed example {} from labels".format(i))
+        if self._feature_names is None:
+            self._feature_names = list(feature_vector.columns)
         assert len(self._features[set_name]) == len(self._targets[set_name]), \
             "number of feature vectors does not match number of labels"
         self.times.setdefault("feature generation", {}).update(
@@ -399,19 +398,19 @@ class Experiment(object):
         logging.info('Started on {} at {}'.format(today, now))
 
         self._run_checks()
-        do_clean = self._preproc_f is not None
+        do_pre = self._preproc_f is not None
         do_features = self._feat_gen_f is not None
         do_predictions = self._clf is not None and self._features["devel"]
         for set_name in self._data_sets.keys():
-            if do_clean:
-                self._clean(set_name)
+            if do_pre:
+                self._preprocess(set_name)
 
             if do_features:
-                if not do_clean:
+                if not do_pre:
                     self._load(set_name, "clean")
                 self._generate_features(set_name)
 
-            if not do_clean and not do_features:
+            if not do_pre and not do_features:
                 self._load(set_name, "features")
 
             if do_predictions:
