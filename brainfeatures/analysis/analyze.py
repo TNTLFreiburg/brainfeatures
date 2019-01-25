@@ -12,6 +12,8 @@ from brainfeatures.visualization.visualize import plot_feature_correlations, \
 # when using someting like 'decision_function' predictions are not within 0, 1 range
 # hence, scale them
 def scale_predictions_to_0_1(y_pred):
+    # TODO: how to know when to use this? don't use for regression,
+    # TODO: use for everything else?
     return minmax_scale(y_pred)
 
 
@@ -33,8 +35,8 @@ def apply_metric(y_true, y_pred, metric):
     return performance
 
 
-def labels_from_continuous(y_pred):
-    y_pred = (y_pred >= .5).astype(int)
+def labels_from_continuous(y_pred, thresh=.5):
+    y_pred = (y_pred >= thresh).astype(int)
     return y_pred
 
 
@@ -96,6 +98,8 @@ def analyze_feature_correlations(feature_matrices):
     correlations, pvalues = spearmanr(feature_matrices)
 
     domains = [label.split("_")[0] for label in feature_labels]
+    if "meta" in domains:
+        domains.remove("meta")
     counts = [domains.count(domain) for domain in np.unique(domains)]
     ticks_at = np.cumsum([0] + counts)
     ticks_at2 = np.cumsum(counts)
@@ -106,7 +110,8 @@ def analyze_feature_correlations(feature_matrices):
 
 
 def analyze_pca_components(pca_components):
-    # TODO: test / make sure that these are correctly sorted!
+    """ show the features that explain most variance in principle components """
+    # TODO: test / check / make sure that order is not changed by pca!
     feature_labels = pca_components.columns
     max_variance_features = []
     for i, g in pca_components.groupby("id"):
