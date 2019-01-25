@@ -1,6 +1,8 @@
+from collections import OrderedDict
 from glob import glob
 import pandas as pd
 import numpy as np
+import logging
 import re
 
 from brainfeatures.data_set.abstract_data_set import DataSet
@@ -173,3 +175,27 @@ class TuhAbnormal(DataSet):
 
     def __len__(self):
         return len(self.file_names)
+
+
+def add_meta_feature(data_set, features, feature_labels):
+    features_to_add = OrderedDict([
+        ("age", data_set.ages),
+        ("gender", data_set.genders),
+    ])
+    target = data_set.target
+    if target in features_to_add:
+        features_to_add.pop(target)
+    logging.info("now adding {} to feature vectors".
+                 format(' and '.join(features_to_add.keys())))
+    for feature in features_to_add:
+        feature_label = "meta_" + feature
+        for i in range(len(features)):
+            repeated_meta_feature = np.repeat(features_to_add[feature][i],
+                                              len(features[i]))
+            repeated_meta_feature = pd.DataFrame(
+                repeated_meta_feature.reshape(-1, 1), columns=[feature_label])
+            features[i] = pd.concat((features[i], repeated_meta_feature),
+                                    axis=1)
+        if feature_label not in feature_labels[::-1]:
+            feature_labels.append(feature_label)
+    return features, feature_labels
