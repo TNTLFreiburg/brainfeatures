@@ -107,8 +107,9 @@ def analyze_feature_correlations(feature_matrices):
     ticks_at = np.cumsum([0] + counts)
     ticks_at2 = np.cumsum(counts)
     plot_feature_correlations(correlations, xticks=ticks_at[:-1],
-                              xticklabels=feature_labels, yticks=ticks_at2,
-                              yticklabels=feature_labels)
+                              xticklabels=feature_labels_without_meta,
+                              yticks=ticks_at2,
+                              yticklabels=feature_labels_without_meta)
     return pd.DataFrame(correlations, columns=feature_labels_without_meta)
 
 
