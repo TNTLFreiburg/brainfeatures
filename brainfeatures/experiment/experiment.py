@@ -368,14 +368,13 @@ class Experiment(object):
         set_name: str
             either "devel" or "eval"
         """
-        # always analyze correlation of features
         feature_correlations = analyze_feature_correlations(
             self._features[set_name])
         self.info[set_name].update({"feature_correlations":
                                     feature_correlations})
         if set_name == "devel":
             set_name = "valid"
-        # if using pca, analyze principal components
+
         if self._pca_thresh is not None:
             pca_features = analyze_pca_components(
                 self.info[set_name]["pca_components"])
@@ -383,28 +382,19 @@ class Experiment(object):
 
         # do feature importances with principle components?
         if self._pca_thresh is None:
-            # if using random forest and not pca, analyze feature_importances
             if "feature_importances" in self.info[set_name]:
                 analyze_feature_importances(
                     self.info[set_name]["feature_importances"])
 
-            # if using random forest and not pca, analyze feature_importances
             if "rfpimp_importances" in self.info[set_name]:
                 analyze_feature_importances(
                     self.info[set_name]["rfpimp_importances"])
 
-    def analyze_features(self, set_names):
+    def analyze_features(self):
         """
         Analyze features of given sets.
-
-        Parameters
-        ----------
-        set_names: list
-            list of strings specifying the set name to be analyzed
         """
-        for set_name in set_names:
-            assert set_name in self.info.keys(), (
-                "unkown set name {}".format(set_name))
+        for set_name in self.info.keys():
             self._analyze_features(set_name)
 
     def run(self):
