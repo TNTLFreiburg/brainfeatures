@@ -1,10 +1,11 @@
+import json
+import os
+import re
+
 from mne.io import read_raw_edf
 import pandas as pd
 import numpy as np
 import h5py
-import json
-import os
-import re
 
 
 def replace_extension(path, new_extension):

@@ -1,8 +1,9 @@
-from joblib import Parallel, delayed
 from datetime import datetime, date
+import logging
+
+from joblib import Parallel, delayed
 import pandas as pd
 import numpy as np
-import logging
 
 from brainfeatures.utils.file_util import pandas_store_as_h5, \
     replace_extension

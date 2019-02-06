@@ -1,11 +1,9 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import os
 
+import matplotlib.pyplot as plt
+import numpy as np
 
-ELECTRODE_NAMES = sorted(
-    ['A1', 'A2', 'C3', 'C4', 'CZ', 'F3', 'F4', 'F7', 'F8', 'FP1', 'FP2', 'FZ',
-     'O1', 'O2', 'P3', 'P4', 'PZ', 'T3', 'T4', 'T5', 'T6'])
+
 ELECTRODE_LOCATIONS = {
     'PZ': [50, 30],
     'CZ': [50, 50],
@@ -36,6 +34,7 @@ ELECTRODE_LOCATIONS = {
     'T4': [89, 50],
     'A2': [107, 52],
 }
+ELECTRODE_NAMES = sorted(ELECTRODE_LOCATIONS.keys())
 
 
 # TODO: plot electrode importances as colormap on the head scheme

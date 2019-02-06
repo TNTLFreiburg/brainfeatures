@@ -1,6 +1,7 @@
+import logging
+
 from mne_features.feature_extraction import extract_features
 import numpy as np
-import logging
 
 from brainfeatures.utils.data_util import split_into_epochs, \
     reject_windows_with_outliers, assemble_overlapping_band_limits

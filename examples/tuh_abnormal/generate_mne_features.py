@@ -1,9 +1,10 @@
+from datetime import datetime, date
+import logging
+
 from mne_features.univariate import get_univariate_funcs
 from mne_features.bivariate import get_bivariate_funcs
 from joblib import Parallel, delayed
-from datetime import datetime, date
 import pandas as pd
-import logging
 
 from brainfeatures.feature_generation.generate_mne_features import \
     generate_mne_features_of_one_file, default_mne_feature_generation_params

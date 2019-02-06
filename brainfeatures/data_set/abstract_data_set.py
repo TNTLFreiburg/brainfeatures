@@ -1,17 +1,11 @@
 from abc import ABCMeta, abstractmethod
 
-"""
-custom data set can be inherited from DataSet. it has to implement a 
-__getitem__ and a __len__ function returning a 3-tuple of signals array, 
-sampling frequency and label and giving the number of examples in the
-data set, respectively
-"""
-
 
 class DataSet(object):
-    """
-    Abstract class of a data set specifying functions and members that are
-    needed by the experiment class.
+    """ custom data set can be inherited from DataSet. it has to implement a
+    __getitem__ and a __len__ function returning a 3-tuple of signals array,
+    sampling frequency and label and giving the number of examples in the
+    data set, respectively
     """
     __metaclass__ = ABCMeta
 

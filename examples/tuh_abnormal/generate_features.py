@@ -1,7 +1,8 @@
-from joblib import Parallel, delayed
 from datetime import datetime, date
-import pandas as pd
 import logging
+
+from joblib import Parallel, delayed
+import pandas as pd
 
 from brainfeatures.feature_generation.generate_features import \
     generate_features_of_one_file, default_feature_generation_params

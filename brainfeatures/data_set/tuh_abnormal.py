@@ -1,9 +1,10 @@
 from collections import OrderedDict
 from glob import glob
-import pandas as pd
-import numpy as np
 import logging
 import re
+
+import pandas as pd
+import numpy as np
 
 from brainfeatures.data_set.abstract_data_set import DataSet
 from brainfeatures.utils.file_util import natural_key, \

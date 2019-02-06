@@ -1,9 +1,10 @@
+import logging
+
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
 from sklearn.decomposition.pca import PCA
 import pandas as pd
 import numpy as np
-import logging
 import rfpimp
 
 

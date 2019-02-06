@@ -1,7 +1,8 @@
 from collections import OrderedDict
+import logging
+
 import pandas as pd
 import numpy as np
-import logging
 
 from brainfeatures.utils.data_util import split_into_epochs, \
     apply_window_function, filter_to_frequency_bands, \

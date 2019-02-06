@@ -1,6 +1,7 @@
-import pandas as pd
 import logging
 import re
+
+import pandas as pd
 
 from brainfeatures.data_set.tuh_abnormal import _read_all_file_names
 

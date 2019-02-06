@@ -1,12 +1,13 @@
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score
-from joblib import Parallel, delayed
 from datetime import datetime, date
 from collections import OrderedDict
 from functools import partial
 import logging
 import time
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from joblib import Parallel, delayed
 
 from brainfeatures.feature_generation.generate_features import \
     generate_features_of_one_file as feat_gen_f, \
@@ -38,14 +39,15 @@ class Experiment(object):
             pca_thresh: float=None,
             scaler=StandardScaler(),
             feature_vector_modifier: callable=None,
-            estimate_feature_importances: bool=True,
+            analyze_features: bool=True,
             verbosity: str="INFO"):
 
-        self._data_sets = OrderedDict([("devel", devel_set), ("eval", eval_set)])
-        self._do_importances = estimate_feature_importances
+        self._data_sets = OrderedDict([("devel", devel_set),
+                                       ("eval", eval_set)])
         self._feat_gen_params = feature_generation_params
         self._feature_modifier = feature_vector_modifier
         self._feat_gen_f = feature_generation_function
+        self._feature_anaylsis = analyze_features
         self._n_runs = n_splits_or_repetitions
         self._preproc_params = preproc_params
         self._shuffle_splits = shuffle_splits
@@ -123,11 +125,11 @@ class Experiment(object):
         """
         Assure conformity of given arguments.
         """
-        assert self._verbosity in ["DEBUG", "INFO", "WARNING", "ERROR",
-                                   0, 10, 20, 30, 40], "unknown verbosity level"
+        assert self._verbosity in ["DEBUG", "INFO", "WARNING", "ERROR", 0,
+                                   10, 20, 30, 40], "unknown verbosity level"
         if self._feat_gen_f is not None:
-            assert hasattr(self._feat_gen_f, "__call__"), \
-                "feature_generation_procedure has to be a callable"
+            assert hasattr(self._feat_gen_f, "__call__"), (
+                "feature_generation_procedure has to be a callable")
         if self._preproc_f is not None:
             assert hasattr(self._preproc_f, "__call__"), \
                 "cleaning_procedure has to be a callable"
@@ -140,7 +142,8 @@ class Experiment(object):
         assert len(self._data_sets["devel"][0]) == 3, \
             "__getitem__ of data set needs to return x, fs, y"
         assert hasattr(self._data_sets["devel"][0][0], "columns"), \
-            "expecting a pandas data frame with channel / feature names as columns"
+            "expecting a pandas data frame with channel / feature names as " \
+            "columns"
         assert self._shuffle_splits in [True, False], \
             "shuffle_splits has to be boolean"
         assert type(self._n_runs) is int and \
@@ -277,7 +280,7 @@ class Experiment(object):
         validation_results, info = validate(
             self._features["devel"], self._targets["devel"], self._clf,
             self._n_runs, self._shuffle_splits, self._scaler,
-            self._pca_thresh, self._do_importances)
+            self._pca_thresh, self._feature_anaylsis)
         self.predictions.update(validation_results)
         self.info.update(info)
         self.times["validation"] = time.time() - start
@@ -294,9 +297,8 @@ class Experiment(object):
         """
         set_names = []
         if set_name == "devel":
-            set_names.extend(["train", "devel"])
-        else:
-            set_names.extend(["eval"])
+            set_names.extend(["train"])
+        set_names.extend([set_name])
 
         for set_name in set_names:
             if set_name == "devel":
@@ -320,7 +322,8 @@ class Experiment(object):
         eval_results, eval_info = final_evaluate(
             self._features["devel"], self._targets["devel"],
             self._features["eval"], self._targets["eval"], self._clf,
-            self._n_runs, self._scaler, self._pca_thresh, self._do_importances)
+            self._n_runs, self._scaler, self._pca_thresh,
+            self._feature_anaylsis)
         self.predictions.update(eval_results)
         self.info.update(eval_info)
         self.times["final evaluation"] = time.time() - start
@@ -354,7 +357,9 @@ class Experiment(object):
 
         if self._metrics is not None:
             self._analyze_performance(set_name)
-        self._analyze_features(set_name)
+
+        if self._feature_anaylsis:
+            self._analyze_features(set_name)
 
     def _analyze_features(self, set_name):
         """
@@ -379,6 +384,7 @@ class Experiment(object):
                 self.info[set_name]["pca_components"])
             self.info[set_name].update({"pca_features": pca_features})
 
+        # do feature importances with principle components?
         if self._pca_thresh is None:
             # if using random forest and not pca, analyze feature_importances
             if "feature_importances" in self.info[set_name]:

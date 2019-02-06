@@ -1,9 +1,10 @@
+import logging
+
 from sklearn.preprocessing import minmax_scale
 from sklearn.metrics import accuracy_score
 from scipy.stats import spearmanr
 import pandas as pd
 import numpy as np
-import logging
 
 from brainfeatures.visualization.visualize import plot_feature_correlations, \
     plot_mean_feature_importances_spatial, plot_scaled_mean_importances
@@ -85,6 +86,8 @@ def analyze_feature_correlations(feature_matrices):
     crop_crounts = [len(d) for d in feature_matrices]
     feature_matrices = pd.concat(feature_matrices, axis=0, ignore_index=True)
     feature_labels = feature_matrices.columns
+    feature_labels_without_meta = [label for label in feature_labels
+                                   if not label.startswith("meta_")]
 
     # average over crops
     groups = []
@@ -97,7 +100,7 @@ def analyze_feature_correlations(feature_matrices):
     # compute feature correlations
     correlations, pvalues = spearmanr(feature_matrices)
 
-    domains = [label.split("_")[0] for label in feature_labels]
+    domains = [label.split("_")[0] for label in feature_labels_without_meta]
     if "meta" in domains:
         domains.remove("meta")
     counts = [domains.count(domain) for domain in np.unique(domains)]
@@ -106,7 +109,7 @@ def analyze_feature_correlations(feature_matrices):
     plot_feature_correlations(correlations, xticks=ticks_at[:-1],
                               xticklabels=feature_labels, yticks=ticks_at2,
                               yticklabels=feature_labels)
-    return correlations
+    return pd.DataFrame(correlations, columns=feature_labels_without_meta)
 
 
 def analyze_pca_components(pca_components):
