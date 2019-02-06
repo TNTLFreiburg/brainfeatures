@@ -346,9 +346,9 @@ class Experiment(object):
                                        self._feature_names))
             assert len(self._features[set_name]) > 0, (
                 "removed all feature vectors")
-            assert self._features[set_name][0].shape[-1] == (
-                len(self._feature_names), "number of features and feature "
-                                          "names does not match")
+            assert self._features[set_name][0].shape[-1] == \
+                len(self._feature_names), "number of features and feature " \
+                                          "names does not match"
         if set_name == "devel":
             self._validate()
         else:

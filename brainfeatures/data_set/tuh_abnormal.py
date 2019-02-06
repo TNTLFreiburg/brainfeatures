@@ -178,7 +178,7 @@ class TuhAbnormal(DataSet):
         return len(self.file_names)
 
 
-def _add_meta_feature(data_set, features, feature_labels):
+def add_meta_feature(data_set, features, feature_labels):
     features_to_add = OrderedDict([
         ("age", data_set.ages),
         ("gender", data_set.genders),
