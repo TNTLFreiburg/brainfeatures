@@ -340,10 +340,10 @@ class Experiment(object):
         """
         # TODELAY: impove feature vector modifier
         if self._feature_modifier is not None:
-            self._features[set_name], self._feature_names =\
+            self._features[set_name], self._feature_names =(
                 self._feature_modifier(self._data_sets[set_name],
                                        self._features[set_name],
-                                       self._feature_names)
+                                       self._feature_names))
             assert len(self._features[set_name]) > 0, (
                 "removed all feature vectors")
             assert self._features[set_name][0].shape[-1] == (

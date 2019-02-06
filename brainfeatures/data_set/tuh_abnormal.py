@@ -178,7 +178,7 @@ class TuhAbnormal(DataSet):
         return len(self.file_names)
 
 
-def add_meta_feature(data_set, features, feature_labels):
+def _add_meta_feature(data_set, features, feature_labels):
     features_to_add = OrderedDict([
         ("age", data_set.ages),
         ("gender", data_set.genders),
@@ -190,13 +190,18 @@ def add_meta_feature(data_set, features, feature_labels):
                  format(' and '.join(features_to_add.keys())))
     for feature in features_to_add:
         feature_label = "meta_" + feature
-        for i in range(len(features)):
-            repeated_meta_feature = np.repeat(features_to_add[feature][i],
-                                              len(features[i]))
-            repeated_meta_feature = pd.DataFrame(
-                repeated_meta_feature.reshape(-1, 1), columns=[feature_label])
-            features[i] = pd.concat((features[i], repeated_meta_feature),
-                                    axis=1)
-        if feature_label not in feature_labels[::-1]:
+        if feature_label in feature_labels[::-1]:
+            logging.warning("feature with name '{}' already exists"
+                            .format(feature_label))
+            continue
+        else:
             feature_labels.append(feature_label)
+            for i in range(len(features)):
+                repeated_meta_feature = np.repeat(features_to_add[feature][i],
+                                                  len(features[i]))
+                repeated_meta_feature = pd.DataFrame(
+                    repeated_meta_feature.reshape(-1, 1),
+                    columns=[feature_label])
+                features[i] = pd.concat((features[i], repeated_meta_feature),
+                                        axis=1)
     return features, feature_labels
