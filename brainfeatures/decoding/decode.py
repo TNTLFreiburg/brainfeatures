@@ -26,6 +26,8 @@ def get_X_y(data_set, agg_f=None):
 
 
 def group_X_y(X, y, unique_groups, feature_labels):
+    """ split X and y based on groups. create a label and group id for every
+    crop"""
     X_grouped, y_grouped, groups = [], [], []
     for trial_i in unique_groups:
         X_grouped.extend(np.array(X[trial_i]))
@@ -36,11 +38,8 @@ def group_X_y(X, y, unique_groups, feature_labels):
 
 
 def get_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
-    """ split cropped data and target wrt given test ind, s.t. no group is
-    accidentally split
-
-    X : list of 2-dim pandas df
-    y: list of targets
+    """ split data and target wrt given train and test ind, s.t. no crops
+    belonging to the same trial are accidentally split
     """
     assert len(X) == len(y), "number of examples and labels does not match"
     assert not (set(train_ind) & set(test_ind)), "train and test set overlap!"
@@ -49,6 +48,7 @@ def get_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
     else:
         feature_labels = [str(i) for i in range(0, X[0].shape[-1])]
 
+    # do not use np.unique since it also sorts the groups
     unique_groups = []
     for group in epoch_to_group_map:
         if group not in unique_groups:
@@ -143,7 +143,7 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
     return y_hat_train, y_hat, dict_of_dfs
 
 
-def create_df_from_predictions(id_, predictions, y_true, groups=None):
+def preds_to_df(id_, predictions, y_true, groups=None):
     """ create a pandas data frame from predictions and labels to an id"""
     predictions_df = pd.DataFrame()
     if groups is not None:
@@ -198,11 +198,6 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
         cv_or_eval = "eval"
     else:
         cv_or_eval = "valid"
-    all_feature_imps = pd.DataFrame()
-    all_rfpimp_imps = pd.DataFrame()
-    all_pca_pcs = pd.DataFrame()
-    all_predictions = pd.DataFrame()
-    info = {}
 
     groups = []
     for trial_i, trial_features in enumerate(X_train):
@@ -218,8 +213,13 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
             X_test, y_test, np.arange(len(X_test)), [], test_groups)
     else:
         kf = KFold(n_splits=n_runs, shuffle=shuffle_splits)
-        splits = kf.split(np.unique(groups))
 
+    all_train_preds = pd.DataFrame()
+    all_feat_imps = pd.DataFrame()
+    all_rfpimps = pd.DataFrame()
+    all_pca_pcs = pd.DataFrame()
+    all_preds = pd.DataFrame()
+    info = {}
     for run_i in range(n_runs):
         logging.debug("this is run {}".format(run_i))
         if cv_or_eval == "valid":
@@ -227,6 +227,8 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
                 clf.random_state = run_i
                 logging.debug("set random state to {}".format(run_i))
 
+            # generator cannot be indexed
+            splits = kf.split(np.unique(groups))
             for i, (train_ind, test_ind) in enumerate(splits):
                 if i == run_i:
                     break
@@ -234,33 +236,34 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
             X, y, X_test, y_test, train_groups, test_groups = \
                 get_train_test(X_train, y_train, train_ind, test_ind, groups)
 
-        predictions_train, predictions, dict_of_dfs = decode_once(
+        preds_train, preds, dict_of_dfs = decode_once(
             X, X_test, y, y_test, clf, scaler, pca_thresh, do_importances)
-        predictions_df = create_df_from_predictions(run_i, predictions,
-                                                    y_test, test_groups)
-        all_predictions = all_predictions.append(predictions_df)
+        preds_df = preds_to_df(run_i, preds, y_test, test_groups)
+        all_preds = all_preds.append(preds_df)
+        preds_train_df = preds_to_df(run_i, preds_train, y_train, train_groups)
+        all_train_preds = all_train_preds.append(preds_train_df)
 
         for key, value in dict_of_dfs.items():
             if key == "feature_importances":
-                all_feature_imps = all_feature_imps.append(value,
-                                                           ignore_index=True)
+                all_feat_imps = all_feat_imps.append(value, ignore_index=True)
             elif key == "rfpimp_importances":
-                all_rfpimp_imps = all_rfpimp_imps.append(value,
-                                                         ignore_index=True)
+                all_rfpimps = all_rfpimps.append(value, ignore_index=True)
             elif key == "pca_components":
-                value["id"] = pd.Series([run_i] * len(value),
-                                        index=value.index)
+                value["id"] = pd.Series([run_i] * len(value), index=value.index)
                 all_pca_pcs = all_pca_pcs.append(value, ignore_index=True)
 
-    if all_feature_imps.size > 0:
-        info.update({"feature_importances": all_feature_imps})
-    if all_rfpimp_imps.size > 0:
-        info.update({"rfpimp_importances": all_rfpimp_imps})
+    if all_feat_imps.size > 0:
+        info.update({"feature_importances": all_feat_imps})
+    if all_rfpimps.size > 0:
+        info.update({"rfpimp_importances": all_rfpimps})
     if all_pca_pcs.size > 0:
         info.update({"pca_components": all_pca_pcs})
 
-    return {cv_or_eval: all_predictions}, \
-           {cv_or_eval: info}
+    # if this is eval set, override cv by eval train predictions
+    set_preds = {cv_or_eval: all_preds,
+                 "train": all_train_preds}
+    set_info = {cv_or_eval: info}
+    return set_preds, set_info
 
 
 def decode(train_set, clf, n_splits_or_repetitions, shuffle_splits,
