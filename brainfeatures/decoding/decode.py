@@ -200,13 +200,14 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
     else:
         cv_or_eval = "valid"
 
-    groups = []
+    train_groups = []
     for trial_i, trial_features in enumerate(X_train):
-        groups.extend(len(trial_features) * [trial_i])
+        train_groups.extend(len(trial_features) * [trial_i])
 
     if cv_or_eval == "eval":
         X, y, _, _, _, _ = get_train_test(X_train, y_train,
-                                          np.arange(len(X_train)), [], groups)
+                                          np.arange(len(X_train)), [],
+                                          train_groups)
         test_groups = []
         for trial_i, trial_features in enumerate(X_test):
             test_groups.extend(len(trial_features) * [trial_i])
@@ -229,13 +230,14 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
                 logging.debug("set random state to {}".format(run_i))
 
             # generator cannot be indexed
-            splits = kf.split(np.unique(groups))
+            splits = kf.split(np.unique(train_groups))
             for i, (train_ind, test_ind) in enumerate(splits):
                 if i == run_i:
                     break
 
             X, y, X_test, y_test, train_groups, test_groups = \
-                get_train_test(X_train, y_train, train_ind, test_ind, groups)
+                get_train_test(X_train, y_train, train_ind, test_ind,
+                               train_groups)
 
         preds_train, preds, dict_of_dfs = decode_once(
             X, X_test, y, y_test, clf, scaler, pca_thresh, do_importances)
