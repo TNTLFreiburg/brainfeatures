@@ -16,7 +16,7 @@ from brainfeatures.analysis.analyze import (
     analyze_quality_of_predictions, analyze_feature_importances,
     analyze_feature_correlations, analyze_pca_components)
 
-from brainfeatures.decoding.decode import validate, final_evaluate
+from brainfeatures.decoding.decode import final_cross_evalidate
 
 log = logging.getLogger(__name__)
 log.setLevel("INFO")
@@ -277,10 +277,15 @@ class Experiment(object):
         logging.info("Making predictions (validation)")
         assert len(self._features["devel"]) == len(self._targets["devel"]), (
             "number of devel examples and labels differs!")
-        validation_results, info = validate(
-            self._features["devel"], self._targets["devel"], self._clf,
-            self._n_runs, self._shuffle_splits, self._scaler,
-            self._pca_thresh, self._feature_anaylsis)
+        validation_results, info = final_cross_evalidate(
+            X_train=self._features["devel"],
+            y_train=self._targets["devel"],
+            clf=self._clf,
+            n_runs=self._n_runs,
+            shuffle_splits=self._shuffle_splits,
+            scaler=self._scaler,
+            pca_thresh=self._pca_thresh,
+            do_importances=self._feature_anaylsis)
         self.predictions.update(validation_results)
         self.info.update(info)
         self.times["validation"] = time.time() - start
@@ -319,11 +324,17 @@ class Experiment(object):
         logging.info("Making predictions (final evaluation)")
         assert len(self._features["eval"]) == len(self._targets["eval"]), (
             "number of eval examples and labels differs!")
-        eval_results, eval_info = final_evaluate(
-            self._features["devel"], self._targets["devel"],
-            self._features["eval"], self._targets["eval"], self._clf,
-            self._n_runs, self._scaler, self._pca_thresh,
-            self._feature_anaylsis)
+        eval_results, eval_info = final_cross_evalidate(
+            X_train=self._features["devel"],
+            y_train=self._targets["devel"],
+            X_test=self._features["eval"],
+            y_test=self._targets["eval"],
+            clf=self._clf,
+            n_runs=self._n_runs,
+            shuffle_splits=False,
+            scaler=self._scaler,
+            pca_thresh=self._pca_thresh,
+            do_importances=self._feature_anaylsis)
         self.predictions.update(eval_results)
         self.info.update(eval_info)
         self.times["final evaluation"] = time.time() - start
@@ -340,7 +351,7 @@ class Experiment(object):
         """
         # TODELAY: impove feature vector modifier
         if self._feature_modifier is not None:
-            self._features[set_name], self._feature_names =(
+            self._features[set_name], self._feature_names = (
                 self._feature_modifier(self._data_sets[set_name],
                                        self._features[set_name],
                                        self._feature_names))
