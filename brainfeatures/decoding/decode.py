@@ -114,15 +114,16 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
     if do_importances:
         if pca_thresh is not None and hasattr(clf, "feature_importances_"):
             feature_labels = list(pca_components.index)
-        # save random forest feature importances for analysis
-        feature_importances = pd.DataFrame(
-            [clf.feature_importances_], columns=feature_labels)
-        dict_of_dfs.update({"feature_importances": feature_importances})
+            # save random forest feature importances for analysis
+            feature_importances = pd.DataFrame(
+                [clf.feature_importances_], columns=feature_labels)
+            dict_of_dfs.update({"feature_importances": feature_importances})
 
         # rfpimp performances can be applied to any scikit-learn model!
-        # rfpimp want everything as data frame. make sure it gets it
+        # rfpimp wants everything as data frame. make sure it gets it
         rfpimp_importances = rfpimp.importances(
-            clf, pd.DataFrame(X_test), pd.DataFrame(y_test), sort=False)
+            clf, pd.DataFrame(X_test),
+            pd.DataFrame(y_test), sort=False)
         dict_of_dfs.update({"rfpimp_importances": rfpimp_importances.T})
 
     if hasattr(clf, "predict_proba"):
