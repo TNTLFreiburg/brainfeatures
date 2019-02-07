@@ -112,8 +112,9 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
     clf = clf.fit(X_train, y_train)
     # TODO: for svm set probability to True?
     if do_importances:
-        if pca_thresh is not None and hasattr(clf, "feature_importances_"):
+        if pca_thresh is not None:
             feature_labels = list(pca_components.index)
+        if hasattr(clf, "feature_importances_"):
             # save random forest feature importances for analysis
             feature_importances = pd.DataFrame(
                 [clf.feature_importances_], columns=feature_labels)
@@ -240,7 +241,7 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
             X, X_test, y, y_test, clf, scaler, pca_thresh, do_importances)
         preds_df = preds_to_df(run_i, preds, y_test, test_groups)
         all_preds = all_preds.append(preds_df)
-        preds_train_df = preds_to_df(run_i, preds_train, y_train, train_groups)
+        preds_train_df = preds_to_df(run_i, preds_train, y, train_groups)
         all_train_preds = all_train_preds.append(preds_train_df)
 
         for key, value in dict_of_dfs.items():
