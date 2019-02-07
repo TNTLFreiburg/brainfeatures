@@ -11,39 +11,13 @@ import pandas as pd
 import numpy as np
 
 from brainfeatures.utils.sun_grid_engine_util import parse_run_args
-from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
+from brainfeatures.data_set.tuh_abnormal import TuhAbnormal, add_meta_feature
 from brainfeatures.experiment.experiment import Experiment
 from brainfeatures.utils.file_util import json_store
 
 
 def root_mean_squared_error(y_true, y_pred, sample_weight=None, multioutput='uniform_average'):
     return np.sqrt(mean_squared_error(y_true, y_pred, sample_weight, multioutput))
-
-
-# TODO: add to cropped features as well
-# TODO: this should already work. to be tested
-def add_meta_feature(data_set, features, feature_labels):
-    genders = data_set.genders
-    assert len(np.unique(genders)) == 2
-    assert "F" in genders and "M" in genders
-    genders = [0 if gender == "M" else 1 for gender in genders]
-    ages = data_set.ages
-    features_to_add = OrderedDict([
-        ("age", ages),
-        ("gender", genders),
-    ])
-    target = data_set.target
-    if target in features_to_add:
-        features_to_add.pop(target)
-    for feature in features_to_add:
-        feature_label = "meta_" + feature
-        for i in range(len(features)):
-            repeated_meta_feature = np.repeat(features_to_add[feature][i], len(features[i]))
-            repeated_meta_feature = pd.DataFrame(repeated_meta_feature.reshape(-1, 1), columns=[feature_label])
-            features[i] = pd.concat((features[i], repeated_meta_feature), axis=1)
-        if feature_label not in feature_labels[::-1]:
-            feature_labels.append(feature_label)
-    return features, feature_labels
 
 
 def run_exp(train_dir, eval_dir, model, n_folds_or_repetitions,
