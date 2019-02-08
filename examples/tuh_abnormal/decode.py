@@ -90,7 +90,6 @@ def run_exp(train_dir, eval_dir, model, n_folds_or_repetitions,
         eval_set=eval_set_feats,
         feature_vector_modifier=feature_vector_modifier,
     )
-    exp.run()
     return exp
 
 
@@ -102,25 +101,19 @@ def write_kwargs(kwargs):
     json_store(kwargs, result_dir + "config.json")
 
 
-def make_final_predictions():
+def save_predictions_and_info():
     result_dir = kwargs["result_dir"]
     if kwargs["eval_dir"] is None:
-        set_name = "train"
+        set_name = "devel"
     else:
         set_name = "eval"
 
+    exp.predictions["train"].to_csv(result_dir + "predictions_train.csv")
     exp.predictions[set_name].to_csv(
         result_dir + "predictions_" + set_name + ".csv")
     if kwargs["model"] == "rf":
-        importances_by_fold = pd.DataFrame()
-        for i, i_info in enumerate(exp.info[set_name]):
-            feature_importances = i_info["feature_importances"]
-            importances_df = create_df_from_feature_importances(
-                i, feature_importances)
-            importances_by_fold = importances_by_fold.append(importances_df)
-
-        importances_by_fold.to_csv(
-            result_dir + "feature_importances_" + set_name + ".csv")
+        for key, value in enumerate(exp.info[set_name]):
+            value.to_csv(key + '_' + set_name + '.csv')
 
 
 def create_df_from_feature_importances(id_, importances):
@@ -139,10 +132,11 @@ if __name__ == '__main__':
     kwargs = parse_run_args()
     start_time = time.time()
     exp = run_exp(**kwargs)
+    exp.run()
     end_time = time.time()
     run_time = end_time - start_time
     logging.info("Experiment runtime: {:.2f} sec".format(run_time))
 
     pickle.dump(exp, open(kwargs["result_dir"] + "exp.pkl", "wb"))
     write_kwargs(kwargs)
-    make_final_predictions()
+    save_predictions_and_info()
