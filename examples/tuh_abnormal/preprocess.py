@@ -5,13 +5,12 @@ from joblib import Parallel, delayed
 import pandas as pd
 import numpy as np
 
-from brainfeatures.utils.file_util import pandas_store_as_h5, \
-    replace_extension
-from brainfeatures.preprocessing.preprocess_raw import preprocess_one_file, \
-    default_preproc_params
+from brainfeatures.utils.file_util import (pandas_store_as_h5,
+                                           replace_extension)
+from brainfeatures.preprocessing.preprocess_raw import (preprocess_one_file,
+                                                        default_preproc_params)
+from brainfeatures.utils.sun_grid_engine_util import determime_curr_file_id
 from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
-from brainfeatures.utils.sun_grid_engine_util import \
-    determime_curr_file_id
 
 
 def process_one_file(data_set, file_id, in_dir, out_dir, dtype,
@@ -74,8 +73,8 @@ def preprocess_main(data_set, in_dir, out_dir, run_on_cluster, dtype, n_jobs):
     if run_on_cluster:
         logging.info("using file id based on sge array job id")
         file_id = determime_curr_file_id(data_set, file_id=None)
-        assert type(file_id) is int, "type of file_id is {} but has to be an " \
-                                     "integer".format(type(file_id))
+        assert type(file_id) is int, ("type of file_id is {} but has to be an "
+                                      "integer".format(type(file_id)))
         file_ids = [file_id]
     else:
         file_ids = range(len(data_set))

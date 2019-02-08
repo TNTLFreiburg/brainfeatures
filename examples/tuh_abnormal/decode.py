@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import logging
 import pickle
 import time
@@ -16,23 +15,26 @@ from brainfeatures.experiment.experiment import Experiment
 from brainfeatures.utils.file_util import json_store
 
 
-def root_mean_squared_error(y_true, y_pred, sample_weight=None, multioutput='uniform_average'):
-    return np.sqrt(mean_squared_error(y_true, y_pred, sample_weight, multioutput))
+def root_mean_squared_error(y_true, y_pred, sample_weight=None,
+                            multioutput='uniform_average'):
+    return np.sqrt(mean_squared_error(y_true, y_pred, sample_weight,
+                                      multioutput))
 
 
 def run_exp(train_dir, eval_dir, model, n_folds_or_repetitions,
             n_jobs, n_recordings, task, C, gamma, bootstrap,
-            min_samples_split, min_samples_leaf, criterion, max_depth, max_features,
-            n_estimators, result_dir, feature_vector_modifier=add_meta_feature):
+            min_samples_split, min_samples_leaf, criterion, max_depth,
+            max_features, n_estimators, result_dir,
+            feature_vector_modifier=add_meta_feature):
 
-    train_set_feats = TuhAbnormal(train_dir, target=task, n_recordings=n_recordings,
-                                  subset="train", extension=".h5")
+    train_set_feats = TuhAbnormal(train_dir, target=task, extension=".h5",
+                                  n_recordings=n_recordings, subset="train")
     train_set_feats.load()
 
     eval_set_feats = None
     if eval_dir is not None:
-        eval_set_feats = TuhAbnormal(eval_dir, target=task,
-                                     subset="eval", extension=".h5")
+        eval_set_feats = TuhAbnormal(eval_dir, target=task, subset="eval",
+                                     extension=".h5")
         eval_set_feats.load()
 
     if model == "rf":
@@ -78,7 +80,7 @@ def run_exp(train_dir, eval_dir, model, n_folds_or_repetitions,
 
     exp = Experiment(
         devel_set=train_set_feats,
-        clf=clf,
+        estimator=clf,
         preproc_function=None,
         n_splits_or_repetitions=n_folds_or_repetitions,
         feature_generation_params=None,
@@ -107,15 +109,18 @@ def make_final_predictions():
     else:
         set_name = "eval"
 
-    exp.predictions[set_name].to_csv(result_dir + "predictions_" + set_name + ".csv")
+    exp.predictions[set_name].to_csv(
+        result_dir + "predictions_" + set_name + ".csv")
     if kwargs["model"] == "rf":
         importances_by_fold = pd.DataFrame()
         for i, i_info in enumerate(exp.info[set_name]):
             feature_importances = i_info["feature_importances"]
-            importances_df = create_df_from_feature_importances(i, feature_importances)
+            importances_df = create_df_from_feature_importances(
+                i, feature_importances)
             importances_by_fold = importances_by_fold.append(importances_df)
 
-        importances_by_fold.to_csv(result_dir + "feature_importances_" + set_name + ".csv")
+        importances_by_fold.to_csv(
+            result_dir + "feature_importances_" + set_name + ".csv")
 
 
 def create_df_from_feature_importances(id_, importances):

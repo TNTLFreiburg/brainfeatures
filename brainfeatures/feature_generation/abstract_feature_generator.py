@@ -15,7 +15,3 @@ class AbstractFeatureGenerator(ABC):
     @abstractmethod
     def get_feature_labels(self):
         raise NotImplementedError
-
-    @abstractmethod
-    def get_feature_names(self):
-        raise NotImplementedError

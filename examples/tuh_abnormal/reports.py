@@ -14,7 +14,8 @@ def merge_two_columns(df, to_replace, replace_by, drop_replaced_column=False):
             return df
 
     for i in range(len(df)):
-        if not pd.isnull(df[replace_by].iloc[i]) and not pd.isnull(df[to_replace].iloc[i]):
+        if not pd.isnull(df[replace_by].iloc[i]) and not pd.isnull(
+                df[to_replace].iloc[i]):
             logging.error("columns intersect at {}".format(i))
             continue
 
@@ -26,19 +27,22 @@ def merge_two_columns(df, to_replace, replace_by, drop_replaced_column=False):
     return df
 
 
-# TODO: merge all the columns that should obviously the same but are not due to typos
+# TODO: merge all the columns that should obviously the same but are not
+# TODO: due to typos
 def merge_all_columns(df):
     columns_to_be_merged = [
         ["CLINICALHISTORY", "HISTORY"],
         ["CLINICALCORRELATION", "CLINICALINTERPRETATION"]
     ]
     for to_replace, replace_by in columns_to_be_merged:
-        df = merge_two_columns(df, to_replace, replace_by, drop_replaced_column=True)
+        df = merge_two_columns(df, to_replace, replace_by,
+                               drop_replaced_column=True)
     return df
 
 
 def main(report_parent_dir, n_reports=None):
-    reports = _read_all_file_names(report_parent_dir, extension=".txt", key="time")
+    reports = _read_all_file_names(report_parent_dir, extension=".txt",
+                                   key="time")
 
     categoy_pattern = "^([A-Z\s]{2,}):"
     content_pattern = ":?(.*)"
@@ -64,14 +68,17 @@ def main(report_parent_dir, n_reports=None):
         for j in range(len(categories) - 1):
             start = categories[j]
             stop = categories[j + 1]
-            match = re.findall(start + content_pattern + stop, content, re.DOTALL)
+            match = re.findall(start + content_pattern + stop, content,
+                               re.DOTALL)
             row.append(match[0].strip())
-            header.append(re.sub(r"\r\n|\t", "", start).strip().replace(" ", ""))
+            header.append(re.sub(r"\r\n|\t", "", start).strip().replace(" ",
+                                                                        ""))
         match = re.findall(stop + content_pattern, content, re.DOTALL)
         row.append(match[0].strip())
         header.append(re.sub(r"\r\n|\t", " ", stop).strip().replace(" ", ""))
         try:
-            df = df.append(pd.DataFrame(data=[row], columns=header), ignore_index=True)
+            df = df.append(pd.DataFrame(data=[row], columns=header),
+                           ignore_index=True)
         except (ValueError, AssertionError):
             # TODO: handle multiple occurences of same category
             continue
@@ -81,4 +88,5 @@ def main(report_parent_dir, n_reports=None):
 
 
 if __name__ == "__main__":
-    main(report_parent_dir="/data/schirrmr/gemeinl/tuh-abnormal-eeg/raw/v2.0.0/")
+    report_parent_dir = "/data/schirrmr/gemeinl/tuh-abnormal-eeg/raw/v2.0.0/"
+    main(report_parent_dir)

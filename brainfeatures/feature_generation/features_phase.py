@@ -1,9 +1,6 @@
 from scipy.signal import hilbert
 import numpy as np
 
-# NOTE: band loop, cos, sin, manual/builtin norm won the timing challenge
-# however, this might be different for varying lengths of signals...
-
 
 def instantaneous_phases(band_signals, axis):
     # use already epoched signal here?
@@ -32,15 +29,17 @@ def phase_locking_values(inst_phases):
 
 
 # functions below are tested to compute almost the same (at least up to e-10)
-def phase_locking_value1(theta1, theta2):
-    delta = np.subtract(theta1, theta2)
-    xs_mean = np.mean(np.cos(delta), axis=-1)
-    ys_mean = np.mean(np.sin(delta), axis=-1)
-    plv = np.sqrt(xs_mean * xs_mean + ys_mean * ys_mean)
-    return plv
+# def phase_locking_value1(theta1, theta2):
+#     delta = np.subtract(theta1, theta2)
+#     xs_mean = np.mean(np.cos(delta), axis=-1)
+#     ys_mean = np.mean(np.sin(delta), axis=-1)
+#     plv = np.sqrt(xs_mean * xs_mean + ys_mean * ys_mean)
+#     return plv
 
 
 def phase_locking_value2(theta1, theta2):
+    # NOTE: band loop, cos, sin, manual/builtin norm won the timing challenge
+    # however, this might be different for varying lengths of signals...
     delta = np.subtract(theta1, theta2)
     xs_mean = np.mean(np.cos(delta), axis=-1)
     ys_mean = np.mean(np.sin(delta), axis=-1)
@@ -48,8 +47,8 @@ def phase_locking_value2(theta1, theta2):
     return plv
 
 
-def phase_locking_value3(theta1, theta2):
-    delta = np.subtract(theta1, theta2)
-    complex_delta = np.exp(np.complex(0, 1) * delta)
-    plv = np.abs(np.mean(complex_delta, axis=-1))
-    return plv
+# def phase_locking_value3(theta1, theta2):
+#     delta = np.subtract(theta1, theta2)
+#     complex_delta = np.exp(np.complex(0, 1) * delta)
+#     plv = np.abs(np.mean(complex_delta, axis=-1))
+#     return plv

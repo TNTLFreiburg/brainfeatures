@@ -7,9 +7,10 @@ import pandas as pd
 import numpy as np
 
 from brainfeatures.data_set.abstract_data_set import DataSet
-from brainfeatures.utils.file_util import natural_key, \
-    parse_age_and_gender_from_edf_header, \
-    mne_load_signals_and_fs_from_edf, property_in_path
+from brainfeatures.utils.file_util import (natural_key,
+                                           parse_age_and_gender_from_edf_header,
+                                           mne_load_signals_and_fs_from_edf,
+                                           property_in_path)
 from brainfeatures.preprocessing.rules import reject_too_long_recording
 
 
@@ -34,10 +35,12 @@ def _time_key(file_name):
 
 def _read_all_file_names(path, extension, key="time"):
     """ read all files with specified extension from given path
-    :param path: parent directory holding the files directly or in subdirectories
+    :param path: parent directory holding the files directly or in
+    subdirectories
     :param extension: the type of the file, e.g. '.txt' or '.edf'
-    :param key: the sorting of the files. natural e.g. 1, 2, 12, 21 (machine 1, 12, 2, 21) or by time since this is
-    important for cv. time is specified in the edf file names
+    :param key: the sorting of the files. natural e.g. 1, 2, 12, 21
+        (machine 1, 12, 2, 21) or by time since this is
+        important for cv. time is specified in the edf file names
     """
     assert key in ["natural", "time"], "unknown sorting key"
     file_paths = glob(path + '**/*' + extension, recursive=True)
@@ -47,15 +50,15 @@ def _read_all_file_names(path, extension, key="time"):
         sorting_key = natural_key
     file_names = sorted(file_paths, key=sorting_key)
 
-    assert len(file_names) > 0, \
-        "something went wrong. Found no {} files in {}".format(
-            extension, path)
+    assert len(file_names) > 0, ("something went wrong. Found no {} files in {}"
+        .format(extension, path))
     return file_names
 
 
 class TuhAbnormal(DataSet):
     """tuh abnormal data set. file names are given as"""
-    # v2.0.0/edf/eval/abnormal/01_tcp_ar/007/00000768/s003_2012_04_06/00000768_s003_t000.edf
+    # v2.0.0/edf/eval/abnormal/01_tcp_ar/007/00000768/s003_2012_04_06/
+    # 00000768_s003_t000.edf
     def __init__(self, data_path, extension, subset="train", channels=sorted([
         'A1', 'A2', 'C3', 'C4', 'CZ', 'F3', 'F4', 'F7', 'F8', 'FP1', 'FP2',
         'FZ', 'O1', 'O2', 'P3', 'P4', 'PZ', 'T3', 'T4', 'T5', 'T6']),
@@ -82,16 +85,17 @@ class TuhAbnormal(DataSet):
         assert data_path.endswith("/"), "data path has to end with '/'"
         assert extension.startswith("."), "extension has to start with '.'"
         if self.subset == "eval":
-            assert self.max_recording_mins is None, "do not reject eval recordings"
+            assert self.max_recording_mins is None, ("do not reject eval "
+                                                     "recordings")
 
     def load(self):
         # read all file names in path with given extension sorted by key
         self.file_names = _read_all_file_names(
             self.data_path, self.extension, self.key)
 
-        assert self.subset in self.file_names[0], \
-            "cannot parse train or eval from file name {}"\
-            .format(self.file_names[0])
+        assert self.subset in self.file_names[0], (
+            "cannot parse train or eval from file name {}"
+            .format(self.file_names[0]))
 
         # prune this file names to train or eval subset
         self.file_names = [file_name for file_name in self.file_names
@@ -115,10 +119,10 @@ class TuhAbnormal(DataSet):
                         continue
             n_picked_recs += 1
 
-            assert self.target in ["pathological", "age", "gender"], \
-                "unknown target {}".format(self.target)
-            assert self.extension in [".edf", ".h5"], \
-                "unknown file format {}".format(self.extension)
+            assert self.target in ["pathological", "age", "gender"], (
+                "unknown target {}".format(self.target))
+            assert self.extension in [".edf", ".h5"], (
+                "unknown file format {}".format(self.extension))
             if self.extension == ".edf":
                 # get pathological status, age and gender for edf file
                 pathological = property_in_path(file_name, "abnormal")
@@ -136,7 +140,8 @@ class TuhAbnormal(DataSet):
             assert gender in ["M", "F"], "unknown gender"
             gender = 0 if gender == "M" else 1
 
-            targets = {"pathological": pathological, "age": age, "gender": gender}
+            targets = {"pathological": pathological, "age": age,
+                       "gender": gender}
             self.targets.append(targets[self.target])
             self.ages.append(age)
             self.genders.append(gender)
@@ -152,10 +157,10 @@ class TuhAbnormal(DataSet):
 
         assert len(self.file_names) == len(self.targets), "lengths differ"
         if self.n_recordings is not None:
-            assert len(self.file_names) == self.n_recordings, \
-                "less recordings picked than desired"
-        assert len(np.intersect1d(self.file_names, files_to_delete)) == 0, \
-            "deleting unwanted file names failed"
+            assert len(self.file_names) == self.n_recordings, (
+                "less recordings picked than desired")
+        assert len(np.intersect1d(self.file_names, files_to_delete)) == 0, (
+            "deleting unwanted file names failed")
 
     def __getitem__(self, index):
         file_ = self.file_names[index]
@@ -181,6 +186,8 @@ class TuhAbnormal(DataSet):
 # this function is called once for devel, once for eval set.
 # on second call dont add feature name, but add met afeature!
 def add_meta_feature(data_set, features, feature_labels):
+    """ modify the feature vectors of a data set. here, we add additional
+     meta features age and gender """
     features_to_add = OrderedDict([
         ("age", data_set.ages),
         ("gender", data_set.genders),

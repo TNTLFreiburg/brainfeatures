@@ -4,17 +4,17 @@ import logging
 import pandas as pd
 import numpy as np
 
-from brainfeatures.utils.data_util import split_into_epochs, \
-    apply_window_function, filter_to_frequency_bands, \
-    reject_windows_with_outliers
-from brainfeatures.feature_generation.wavelet_feature_generator \
-    import WaveletFeatureGenerator
-from brainfeatures.feature_generation.frequency_feature_generator \
-    import FrequencyFeatureGenerator
-from brainfeatures.feature_generation.phase_feature_generator \
-    import PhaseFeatureGenerator
-from brainfeatures.feature_generation.time_feature_generator \
-    import TimeFeatureGenerator
+from brainfeatures.utils.data_util import (
+    split_into_epochs, apply_window_function, filter_to_frequency_bands,
+    reject_windows_with_outliers)
+from brainfeatures.feature_generation.wavelet_feature_generator import (
+    WaveletFeatureGenerator)
+from brainfeatures.feature_generation.frequency_feature_generator import (
+    FrequencyFeatureGenerator)
+from brainfeatures.feature_generation.phase_feature_generator import (
+    PhaseFeatureGenerator)
+from brainfeatures.feature_generation.time_feature_generator import (
+    TimeFeatureGenerator)
 from brainfeatures.utils.data_util import assemble_overlapping_band_limits
 
 
@@ -95,29 +95,27 @@ def generate_features_of_one_file(signals: pd.DataFrame, sfreq: int,
     generators = OrderedDict()
     params = OrderedDict()
     if "cwt" in domains or "all" in domains:
-        generators.update({
-            "CWTFeatureGenerator": WaveletFeatureGenerator(
-                elecs=channels, agg=agg_mode, sfreq=sfreq, domain="cwt",
-                wavelet=continuous_wavelet,
-                band_limits=non_overlapping_bands)})
-        params.update({"CWTFeatureGenerator": weighted_epochs})
+        name = "CWTFeatureGenerator"
+        wfg = WaveletFeatureGenerator(elecs=channels, agg=agg_mode, sfreq=sfreq,
+                                      domain="cwt", wavelet=continuous_wavelet,
+                                      band_limits=non_overlapping_bands)
+        generators.update({name: wfg})
+        params.update({name: weighted_epochs})
 
     if "dwt" in domains or "all" in domains:
-        generators.update({
-            "DWTFeatureGenerator": WaveletFeatureGenerator(
-                agg=agg_mode, elecs=channels,
-                domain="dwt",
-                wavelet=discrete_wavelet,
-                band_limits=non_overlapping_bands,
-                sfreq=sfreq)})
-        params.update({"DWTFeatureGenerator": weighted_epochs})
+        name = "DWTFeatureGenerator"
+        wfg = WaveletFeatureGenerator(agg=agg_mode, elecs=channels, sfreq=sfreq,
+                                      domain="dwt", wavelet=discrete_wavelet,
+                                      band_limits=non_overlapping_bands)
+        generators.update({name: wfg})
+        params.update({name: weighted_epochs})
 
     if "dft" in domains or "all" in domains:
-        generators.update({
-            "DFTFeatureGenerator": FrequencyFeatureGenerator(
-                agg=agg_mode, bands=band_limits, elecs=channels,
-                sfreq=sfreq)})
-        params.update({"DFTFeatureGenerator": weighted_epochs})
+        name = "DFTFeatureGenerator"
+        ffg = FrequencyFeatureGenerator(agg=agg_mode, bands=band_limits,
+                                        elecs=channels, sfreq=sfreq)
+        generators.update({name: ffg})
+        params.update({name: weighted_epochs})
 
     if "phase" in domains or "all" in domains:
         band_signals = filter_to_frequency_bands(
@@ -125,17 +123,19 @@ def generate_features_of_one_file(signals: pd.DataFrame, sfreq: int,
         band_epochs = split_into_epochs(band_signals, sfreq=sfreq,
                                         epoch_duration_s=epoch_duration_s)
         band_epochs = band_epochs[outlier_mask == False]
-        generators.update({
-            "PhaseFeatureGenerator": PhaseFeatureGenerator(
-                agg=agg_mode, bands=band_limits, elecs=channels)})
-        params.update({"PhaseFeatureGenerator": band_epochs})
+
+        name = "PhaseFeatureGenerator"
+        pfg = PhaseFeatureGenerator(agg=agg_mode, bands=band_limits,
+                                    elecs=channels)
+        generators.update({name: pfg})
+        params.update({name: band_epochs})
 
     if "time" in domains or "all" in domains:
-        generators.update({
-            "TimeFeatureGenerator": TimeFeatureGenerator(
-                agg=agg_mode, elecs=channels, outlier_value=max_abs_val,
-                sfreq=sfreq)})
-        params.update({"TimeFeatureGenerator": epochs})
+        name = "TimeFeatureGenerator"
+        tfg = TimeFeatureGenerator(agg=agg_mode, elecs=channels, sfreq=sfreq,
+                                   outlier_value=max_abs_val)
+        generators.update({name: tfg})
+        params.update({name: epochs})
 
     all_features, feature_labels = [], []
     for fg_name, fg in generators.items():

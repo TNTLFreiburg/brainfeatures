@@ -5,7 +5,6 @@ import re
 from mne.io import read_raw_edf
 import pandas as pd
 import numpy as np
-import h5py
 
 
 def replace_extension(path, new_extension):
@@ -13,19 +12,6 @@ def replace_extension(path, new_extension):
     old_exension = os.path.splitext(path)[1]
     path = path.replace(old_exension, new_extension)
     return path
-
-
-def h5_load(path):
-    """ load signals from h5 """
-    assert os.path.exists(path), "file not found {}".format(path)
-    f = h5py.File(path, "r")
-    x = f["signals"][:]
-    f.close()
-    if len(x.shape) == 2:
-        xdim, ydim = x.shape
-        if xdim > ydim:
-            x = x.T
-    return x.astype(np.float64)
 
 
 def json_store(to_store, path):
@@ -53,15 +39,15 @@ def mne_load_signals_and_fs_from_edf(file_, wanted_chs, ch_name_pattern=None,
     fs = raw.info["sfreq"]
     raw = raw.load_data()
     if ch_name_pattern is not None:
-        chs = [ch_name_pattern.format(wanted_elec) for wanted_elec in wanted_chs]
+        chs = [ch_name_pattern.format(ch) for ch in wanted_chs]
     else:
         chs = wanted_chs
     raw = raw.reorder_channels(chs)
     # achieves two things: asserts that channels are sorted and picked
     # channels are in same order
-    assert raw.ch_names == sorted(chs), \
-        "actual channel names: {}, wanted channels names: {}".format(
-            ', '.join(raw.ch_names), ', '.join(chs))
+    assert raw.ch_names == sorted(chs), (
+        "actual channel names: {}, wanted channels names: {}"
+            .format(', '.join(raw.ch_names), ', '.join(chs)))
 
     signals = raw.get_data()
     if factor is not None:
@@ -95,16 +81,6 @@ def parse_age_and_gender_from_edf_header(file_path):
     return int(age), gender
 
 
-def parse_property_from_file_name(curr_file, property):
-    """ parse shape, age or gender or pathology status from file name """
-    assert os.path.exists(curr_file), "file not found {}".format(curr_file)
-    # take everything of file name except data type ending
-    tmp_file = curr_file.split('.')[-2]
-    tokens = tmp_file.split('_')
-    value = tokens[tokens.index(property) + 1]
-    return value
-
-
 def property_in_path(curr_path, property):
     tokens = curr_path.split("/")
     return property in tokens
@@ -125,13 +101,15 @@ def natural_key(string):
 
 
 def read_feature_results(directory, models, decoding_tasks, decoding_types):
-    from sklearn.metrics import roc_auc_score, accuracy_score, roc_curve, mean_squared_error
+    from sklearn.metrics import (roc_auc_score, accuracy_score, roc_curve,
+                                 mean_squared_error)
     result_df = pd.DataFrame()
     for model in models:
         for decoding_type in decoding_types:
             for task in decoding_tasks:
                 for subset in ["cv", "eval"]:
-                    path = os.path.join(directory, model, decoding_type, task, subset)
+                    path = os.path.join(directory, model, decoding_type, task,
+                                        subset)
                     if not os.path.exists(path):
                         print("path does not exist: {}".format(path))
                         continue
@@ -140,7 +118,8 @@ def read_feature_results(directory, models, decoding_tasks, decoding_types):
                         train_or_eval = "eval"
                     else:
                         train_or_eval = "train"
-                    df = pd.DataFrame.from_csv(os.path.join(path, "predictions_{}.csv".format(train_or_eval)))
+                    df = pd.DataFrame.from_csv(os.path.join(
+                        path, "predictions_{}.csv".format(train_or_eval)))
 
                     # compute some metrics
                     roc_curves, aucs, accs, rmses = [], [], [], []
@@ -155,7 +134,8 @@ def read_feature_results(directory, models, decoding_tasks, decoding_types):
                             acc = accuracy_score(d.y_true, d.y_pred >= .5)
                             accs.append(acc)
                         else:
-                            rmse = np.sqrt(mean_squared_error(d.y_true, d.y_pred))
+                            rmse = np.sqrt(mean_squared_error(d.y_true,
+                                                              d.y_pred))
                             rmses.append(rmse)
 
                     n = len(df.groupby("id"))

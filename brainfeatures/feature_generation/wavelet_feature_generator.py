@@ -1,12 +1,12 @@
-from pywt._extensions._pywt import DiscreteContinuousWavelet, \
-    ContinuousWavelet, Wavelet, _check_dtype
-from pywt._functions import integrate_wavelet, scale2frequency, \
-    central_frequency
+from pywt._extensions._pywt import (DiscreteContinuousWavelet,
+    ContinuousWavelet, Wavelet, _check_dtype)
+from pywt._functions import (integrate_wavelet, scale2frequency,
+    central_frequency)
 from pywt import wavedec, dwt_max_level, wavelist
 import numpy as np
 
-from brainfeatures.feature_generation.abstract_feature_generator import \
-    AbstractFeatureGenerator
+from brainfeatures.feature_generation.abstract_feature_generator import (
+    AbstractFeatureGenerator)
 from brainfeatures.feature_generation import features_wavelets
 
 
@@ -25,13 +25,6 @@ class WaveletFeatureGenerator(AbstractFeatureGenerator):
                     feature_labels.append(
                         '_'.join([self.domain, wt_feat, level, str(electrode)]))
         return feature_labels
-
-    def get_feature_names(self):
-        """
-        :return: basically a list with shortened names from above in the
-        form <domain>_<feature>
-        """
-        return [self.domain + '_' + feat for feat in self.wt_feats]
 
     def freqs_to_scale(self, freqs, wavelet, sfreq):
         """ compute cwt scales to given frequencies """
@@ -195,7 +188,8 @@ class WaveletFeatureGenerator(AbstractFeatureGenerator):
                                      wavelet=self.wavelet, level=n_levels-1,
                                      axis=2)
         multi_level_coeffs = [np.abs(d) for d in multi_level_coeffs]
-        multi_level_coeffs = [d/weighted_windows.shape[-1] for d in multi_level_coeffs]
+        multi_level_coeffs = [d/weighted_windows.shape[-1] for d in
+                              multi_level_coeffs]
 
         for wt_feat_id, wt_feat_name in enumerate(self.wt_feats):
             # assumes that "power" feature was already computed. which should

@@ -20,8 +20,8 @@ def remove_end(
     return signals[:, :-int(sec_to_cut_end * fs)]
 
 
-def take_part(
-        signals: np.ndarray, duration_recording_mins: int, fs: int) -> np.ndarray:
+def take_part(signals: np.ndarray, duration_recording_mins: int, fs: int) -> \
+        np.ndarray:
     return signals[:, :int(duration_recording_mins * 60 * fs)]
 
 

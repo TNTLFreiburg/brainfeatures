@@ -25,8 +25,8 @@ def reject_windows_with_outliers(epochs: np.ndarray,
     return outliers
 
 
-def apply_window_function(epochs: np.ndarray, window_name: str="blackmanharris")\
-        -> np.ndarray:
+def apply_window_function(epochs: np.ndarray,
+                          window_name: str="blackmanharris") -> np.ndarray:
     """ apply blackmanharris window function """
     assert window_name in ["boxcar", "hamming", "hann", "blackmanharris",
                            "flattop"], \

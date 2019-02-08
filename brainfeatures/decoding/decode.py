@@ -49,6 +49,7 @@ def get_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
         feature_labels = [str(i) for i in range(0, X[0].shape[-1])]
 
     # do not use np.unique since it also sorts the groups
+    # do not use set since it does not have an order
     unique_groups = []
     for group in epoch_to_group_map:
         if group not in unique_groups:
@@ -88,9 +89,8 @@ def apply_pca(X_train, X_test, pca_thresh):
     logging.info("reduced dimensionality from {} to {}"
                  .format(shape_orig, shape_reduced))
     rows = ["PC-{}".format(i) for i in range(len(pca.components_))]
-    components = pd.DataFrame(pca.components_, columns=feature_labels,
-                              index=rows)
-    return X_train, X_test, components
+    pcs = pd.DataFrame(pca.components_, columns=feature_labels, index=rows)
+    return X_train, X_test, pcs
 
 
 def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
@@ -99,21 +99,18 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
     predict test set, return predictions"""
     logging.debug("{} examples in train set, {} examples in test set".format(
         len(X_train), len(X_test)))
-
     feature_labels = X_train.columns
 
     dict_of_dfs = {}
     if scaler is not None:
         X_train, X_test = apply_scaler(X_train, X_test, scaler)
     if pca_thresh is not None:
-        X_train, X_test, pca_components = apply_pca(X_train, X_test,
-                                                    pca_thresh)
-        dict_of_dfs.update({"pca_components": pca_components})
+        X_train, X_test, pcs = apply_pca(X_train, X_test, pca_thresh)
+        dict_of_dfs.update({"pca_components": pcs})
+        feature_labels = list(pcs.index)
     clf = clf.fit(X_train, y_train)
     # TODO: for svm set probability to True?
     if do_importances:
-        if pca_thresh is not None:
-            feature_labels = list(pca_components.index)
         if hasattr(clf, "feature_importances_"):
             # save random forest feature importances for analysis
             feature_importances = pd.DataFrame(
@@ -148,9 +145,9 @@ def preds_to_df(id_, predictions, y_true, groups=None):
     """ create a pandas data frame from predictions and labels to an id"""
     predictions_df = pd.DataFrame()
     if groups is not None:
-        assert len(groups) == len(y_true), \
-            "groups: {}, y_true: {}".format(len(groups), len(y_true))
-
+        assert len(groups) == len(y_true), (
+            "length mismatch groups: {}, y_true: {}".format(len(groups),
+                                                            len(y_true)))
     for i in range(len(y_true)):
         row = {"id": id_,
                "y_true": y_true[i],
@@ -161,9 +158,34 @@ def preds_to_df(id_, predictions, y_true, groups=None):
     return predictions_df
 
 
-def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
-                          X_test=None, y_test=None, scaler=StandardScaler(),
-                          pca_thresh=None, do_importances=True):
+def validate(X_train, y_train, clf, n_splits, shuffle_splits,
+             scaler=StandardScaler(), pca_thresh=None, do_importances=True):
+    """ perform cross validation """
+    decode(X_train=X_train, y_train=y_train, clf=clf, n_runs=n_splits,
+           shuffle_splits=shuffle_splits, X_test=None, y_test=None,
+           scaler=scaler, pca_thresh=pca_thresh, do_importances=do_importances)
+
+
+def final_evaluate(X_train, y_train, clf, n_runs, X_test=None, y_test=None,
+                   scaler=StandardScaler(), pca_thresh=None,
+                   do_importances=True):
+    """ perform final evaluation """
+    decode(X_train=X_train, y_train=y_train, clf=clf, n_runs=n_runs,
+           shuffle_splits=False, X_test=X_test, y_test=y_test, scaler=scaler,
+           pca_thresh=pca_thresh, do_importances=do_importances)
+
+
+def get_groups_from_cropped(X):
+    """ calculate groups from cropped signals. used to average predictions """
+    groups = []
+    for trial_i, trial_features in enumerate(X):
+        groups.extend(len(trial_features) * [trial_i])
+    return groups
+
+
+def decode(X_train, y_train, clf, n_runs, shuffle_splits, X_test=None,
+           y_test=None, scaler=StandardScaler(), pca_thresh=None,
+           do_importances=True):
     """
     Perform cross-validation or final evaluation.
 
@@ -179,9 +201,9 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
         number of cv splits or final evaluation repetitions
     shuffle_splits: bool
         whether to shuffle cv splits. ignored when X_test, y_test are given
-    X_test: list
+    X_test: list, None
         list of data frames with n_windows x n_features
-    y_test: list
+    y_test: list, None
         test targets
     scaler:
         feature transformer following scikit-learn api
@@ -195,33 +217,24 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
     Returns dict{set_name: predictions}, dict{setname: additional info}
     -------
     """
-    if X_test is not None and y_test is not None:
-        cv_or_eval = "eval"
-    else:
-        cv_or_eval = "valid"
-
-    train_groups = []
-    for trial_i, trial_features in enumerate(X_train):
-        train_groups.extend(len(trial_features) * [trial_i])
+    cv_or_eval = "valid" if X_test is None and y_test is None else "eval"
+    train_groups = get_groups_from_cropped(X_train)
 
     if cv_or_eval == "eval":
-        X, y, _, _, _, _ = get_train_test(X_train, y_train,
-                                          np.arange(len(X_train)), [],
-                                          train_groups)
-        test_groups = []
-        for trial_i, trial_features in enumerate(X_test):
-            test_groups.extend(len(trial_features) * [trial_i])
+        X, y, _, _, _, _ = get_train_test(
+            X_train, y_train, np.arange(len(X_train)), [], train_groups)
+        test_groups = get_groups_from_cropped(X_test)
         X_test, y_test, _, _, test_groups, _ = get_train_test(
             X_test, y_test, np.arange(len(X_test)), [], test_groups)
     else:
         kf = KFold(n_splits=n_runs, shuffle=shuffle_splits)
 
-    all_train_preds = pd.DataFrame()
-    all_feat_imps = pd.DataFrame()
-    all_rfpimps = pd.DataFrame()
-    all_pca_pcs = pd.DataFrame()
-    all_preds = pd.DataFrame()
-    info = {}
+    set_preds = {cv_or_eval: pd.DataFrame(),
+                 "train": pd.DataFrame()}
+    set_info = {"feature_importances": pd.DataFrame(),
+                "rfpimp_importances": pd.DataFrame(),
+                "pca_components": pd.DataFrame()}
+
     for run_i in range(n_runs):
         logging.debug("this is run {}".format(run_i))
         if cv_or_eval == "valid":
@@ -239,47 +252,21 @@ def final_cross_evalidate(X_train, y_train, clf, n_runs, shuffle_splits,
                 get_train_test(X_train, y_train, train_ind, test_ind,
                                train_groups)
 
-        preds_train, preds, dict_of_dfs = decode_once(
-            X, X_test, y, y_test, clf, scaler, pca_thresh, do_importances)
+        preds_train, preds, dict_of_dfs = decode_once(X, X_test, y, y_test, clf,
+                                                      scaler, pca_thresh,
+                                                      do_importances)
         preds_df = preds_to_df(run_i, preds, y_test, test_groups)
-        all_preds = all_preds.append(preds_df)
+        set_preds[cv_or_eval] = set_preds[cv_or_eval].append(preds_df)
         preds_train_df = preds_to_df(run_i, preds_train, y, train_groups)
-        all_train_preds = all_train_preds.append(preds_train_df)
+        set_preds["train"] = set_preds["train"].append(preds_train_df)
 
         for key, value in dict_of_dfs.items():
-            if key == "feature_importances":
-                all_feat_imps = all_feat_imps.append(value, ignore_index=True)
-            elif key == "rfpimp_importances":
-                all_rfpimps = all_rfpimps.append(value, ignore_index=True)
-            elif key == "pca_components":
+            if key == "pca_components":
                 value["id"] = pd.Series([run_i] * len(value), index=value.index)
-                all_pca_pcs = all_pca_pcs.append(value, ignore_index=True)
+            set_info[key] = set_info[key].append(value, ignore_index=True)
 
-    if all_feat_imps.size > 0:
-        info.update({"feature_importances": all_feat_imps})
-    if all_rfpimps.size > 0:
-        info.update({"rfpimp_importances": all_rfpimps})
-    if all_pca_pcs.size > 0:
-        info.update({"pca_components": all_pca_pcs})
+    for key, value in set_info.items():
+        if value.size == 0:
+            set_info.pop(key)
 
-    # if this is eval set, override cv by eval train predictions
-    set_preds = {cv_or_eval: all_preds,
-                 "train": all_train_preds}
-    set_info = {cv_or_eval: info}
-    return set_preds, set_info
-
-
-def decode(train_set, clf, n_splits_or_repetitions, shuffle_splits,
-           eval_set=None, scaler=StandardScaler(), pca_thresh=None):
-    """ decode the target from given data sets, either doing validation or
-    final evaluation """
-    X_test, y_test = None, None
-    if eval_set is not None:
-        X_test, y_test = get_X_y(eval_set)
-
-    X, y = get_X_y(train_set)
-    results, info = final_cross_evalidate(X, y, clf, n_splits_or_repetitions,
-                                          shuffle_splits, X_test=X_test,
-                                          y_test=y_test, scaler=scaler,
-                                          pca_thresh=pca_thresh)
-    return results, info
+    return set_preds, {cv_or_eval: set_info}

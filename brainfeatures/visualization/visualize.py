@@ -93,8 +93,10 @@ def plot_feature_correlations(data, title='', xticks=None, xticklabels=None,
 
 def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
                                           out_dir=None, n_most_important=5):
-    """ plot the feature importances on a scheme of the head to add spatial relationship.
-    :param importances: the feature importances as returned by the RF. shape n_folds x n_features
+    """ plot the feature importances on a scheme of the head to add spatial
+    relationship.
+    :param importances: the feature importances as returned by the RF. shape
+         n_folds x n_features
     :param out_dir: the output directory where the plots are saved to
     :param feature_labels: the list of features
     :param n_most_important: the number of features that should be analyzed
@@ -133,7 +135,7 @@ def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
             new_labels.append('_'.join(feature_label.split('_')[:-1]))
     feature_labels = new_labels
 
-    # _______________________________________________________________________________
+    # __________________________________________________________________________
     # offset due to aligning strings at the bottom left corner
     offset_x = 7.7
     offset_y = -6.3
@@ -163,12 +165,14 @@ def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
     #     colors = [color_map(i) for i in np.linspace(0, 1, n_most_important)]
 
     # put the n most important feature of a electrode at the respective position
-    # if only patient features are used, this will crash since the electrode_to_feature_labels map will not contain
-    # any entry. this is because "age" and "sex" feature_label does not contain any electrode
+    # if only patient features are used, this will crash since the
+    # electrode_to_feature_labels map will not contain any entry. this is
+    # because "age" and "sex" feature_label does not contain any electrode
     for electrode in ELECTRODE_NAMES:
         if not electrode_to_feature_labels[electrode]:
             continue
-        zipped = zip(mean_importances[np.asarray(electrode_to_feature_labels[electrode])],
+        zipped = zip(mean_importances[
+                         np.asarray(electrode_to_feature_labels[electrode])],
                      electrode_to_feature_labels[electrode])
         sorted_zipped = sorted(zipped, reverse=True)
         sorted_mean_imp, sorted_mean_imp_ids = zip(*sorted_zipped)
@@ -176,13 +180,15 @@ def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
         most_important_mean_imp_ids = sorted_mean_imp_ids[:n_most_important]
 
         [x, y] = ELECTRODE_LOCATIONS[electrode]
-        for i in range(min(n_most_important, len(electrode_to_feature_labels['O1']))):
+        for i in range(min(n_most_important,
+                           len(electrode_to_feature_labels['O1']))):
             # print(most_important_mean_imp[i])
             # print(feature_labels[most_important_mean_imp_ids[i]])
             name = feature_labels[most_important_mean_imp_ids[i]]
             value = str(most_important_mean_imp[i])[:7]
             # plot the electrode in the background
-            #plt.text(x, y - 10, electrode, fontsize=40, color='blue', alpha=.03)
+            # plt.text(x, y - 10, electrode, fontsize=40, color='blue',
+            #          alpha=.03)
             # name = '_'.join(name.split('_')[1:])
             if "lyauponov" in name:
                 name = "time_lyauponov_exp"
@@ -192,14 +198,16 @@ def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
             if "boundedvar" in name:
                 name = name.replace("fft_", "")
             if n_most_important == 3:
-                # plot the n most important features together with their importances at their location
+                # plot the n most important features together with their
+                # importances at their location
                 plt.text(x, y-i*5.5, name, fontsize=fontsize, fontweight='bold',
                          color='black', alpha=1-.1*i)
                 plt.text(x, y-(i+.53)*5.5, str(value),  fontsize=fontsize,
                          color='black', alpha=1-.3*i)
             else:
-                # plt.text(x, y-1-i*2.5, name + ' ' + value, fontsize=fontsize-1,
-                #          fontweight='bold', color='black', alpha=1-.15*i)
+                # plt.text(x, y-1-i*2.5, name + ' ' + value,
+                #          fontsize=fontsize-1, fontweight='bold',
+                #          color='black', alpha=1-.15*i)
                 plt.text(x, y - 1 - i * 2.5, name, fontsize=fontsize - 1,
                          fontweight='bold', color='black', alpha=1 - .15 * i)
 
@@ -221,16 +229,21 @@ def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
 
 # TODO: re-check this
 # TODO: this should not do any more computations
-def plot_scaled_mean_importances(list_of_properties_and_name, mean_feature_importances, feature_labels, out_dir=None):
+def plot_scaled_mean_importances(list_of_properties_and_name,
+                                 mean_feature_importances, feature_labels,
+                                 out_dir=None):
     plt.figure(figsize=(7*len(list_of_properties_and_name), 5))
-    for j, (properties, property_name) in enumerate(list_of_properties_and_name):
+    for j, (properties, property_name) in \
+            enumerate(list_of_properties_and_name):
         mean_property_importances = []
         for property_ in properties:
-            importances = [feature_importance for i, feature_importance in enumerate(mean_feature_importances)
+            importances = [feature_importance for i, feature_importance in
+                           enumerate(mean_feature_importances)
                            if property_ in feature_labels[i]]
             mean_property_importances.append(np.mean(importances))
 
-        scaled_mean_importance = mean_property_importances/np.sum(mean_property_importances)
+        scaled_mean_importance = mean_property_importances/np.sum(
+            mean_property_importances)
         plt.subplot(1, len(list_of_properties_and_name), j+1)
         plt.bar(range(len(properties)), scaled_mean_importance)
         plt.xticks(range(len(properties)), properties, rotation=90)
@@ -241,8 +254,8 @@ def plot_scaled_mean_importances(list_of_properties_and_name, mean_feature_impor
         plt.savefig(out_dir, "importances.png", dpi=400)
 
 
-def histogram(df_of_ages_genders_and_pathology_status, train_or_eval, alpha=.5, fs=24,
-              ylim=20, bins=np.linspace(0, 100, 101), out_dir=None):
+def histogram(df_of_ages_genders_and_pathology_status, train_or_eval, alpha=.5,
+              fs=24, ylim=20, bins=np.linspace(0, 100, 101), out_dir=None):
     df = df_of_ages_genders_and_pathology_status
     male_df = df[df["gender"] == "M"]
     female_df = df[df["gender"] == "F"]
@@ -252,31 +265,45 @@ def histogram(df_of_ages_genders_and_pathology_status, train_or_eval, alpha=.5, 
     female_abnormal_df = female_df[female_df["pathological"] == 1]
     female_normal_df = female_df[female_df["pathological"] == 0]
 
-    f, (ax1, ax2) = plt.subplots(ncols=2, sharey=True, sharex=False, figsize=(15, 18))
+    f, (ax1, ax2) = plt.subplots(ncols=2, sharey=True, sharex=False,
+                                 figsize=(15, 18))
     plt.suptitle(train_or_eval+" histogram", y=.9, fontsize=fs+5)
-    ax1.hist(x=male_abnormal_df["age"], bins=bins, alpha=alpha, color="blue", orientation="horizontal",
-             label="pathological ({:.2f}%)".format(len(male_abnormal_df) / len(male_df) * 100))
-    ax1.hist(x=male_normal_df["age"], bins=bins, alpha=alpha, color="green", orientation="horizontal",
-             label="normal ({:.2f}%)".format(len(male_normal_df) / len(male_df) * 100))
+    ax1.hist(x=male_abnormal_df["age"], bins=bins, alpha=alpha, color="blue",
+             orientation="horizontal",
+             label="pathological ({:.2f}%)".format(len(male_abnormal_df) /
+                                                   len(male_df) * 100))
+    ax1.hist(x=male_normal_df["age"], bins=bins, alpha=alpha, color="green",
+             orientation="horizontal",
+             label="normal ({:.2f}%)".format(len(male_normal_df) /
+                                             len(male_df) * 100))
     ax1.axhline(np.mean(male_df["age"]), color="black",
-                # label="mean age {:.2f} $\pm$ {:.2f}".format(np.mean(male_df["age"]), np.std(male_df["age"])))
-                label="mean age {:.2f} ({:.2f})".format(np.mean(male_df["age"]), np.std(male_df["age"])))
-    ax1.barh(np.mean(male_df["age"]), height=2 * np.std(male_df["age"]), width=ylim, color="black",
-             alpha=.25)
+                # label="mean age {:.2f} $\pm$ {:.2f}".format(
+                #     np.mean(male_df["age"]), np.std(male_df["age"])))
+                label="mean age {:.2f} ({:.2f})"
+                .format(np.mean(male_df["age"]), np.std(male_df["age"])))
+    ax1.barh(np.mean(male_df["age"]), height=2 * np.std(male_df["age"]),
+             width=ylim, color="black", alpha=.25)
     ax1.set_xlim(0, ylim)
     ax1.legend(fontsize=fs, loc="lower left")
     ax1.set_title("male ({:.2f}%)".format(100 * float(len(male_df) / len(df))),
                   fontsize=fs, loc="left", y=.95, x=.05)
     ax1.invert_xaxis()
 
-    ax2.hist(x=female_abnormal_df["age"], bins=bins, alpha=alpha, color="red", orientation="horizontal",
-             label="pathological ({:.2f}%)".format(len(female_abnormal_df) / len(female_df) * 100))
-    ax2.hist(x=female_normal_df["age"], bins=bins, alpha=alpha, color="orange", orientation="horizontal",
-             label="normal ({:.2f}%)".format(len(female_normal_df) / len(female_df) * 100))
+    ax2.hist(x=female_abnormal_df["age"], bins=bins, alpha=alpha, color="red",
+             orientation="horizontal",
+             label="pathological ({:.2f}%)".format(len(female_abnormal_df) /
+                                                   len(female_df) * 100))
+    ax2.hist(x=female_normal_df["age"], bins=bins, alpha=alpha, color="orange",
+             orientation="horizontal",
+             label="normal ({:.2f}%)".format(len(female_normal_df) /
+                                             len(female_df) * 100))
     ax2.axhline(np.mean(female_df["age"]), color="black", linestyle="--",
-                # label="mean age {:.2f} $\pm$ {:.2f}".format(np.mean(female_df["age"]), np.std(female_df["age"])))
-                label="mean age {:.2f} ({:.2f})".format(np.mean(female_df["age"]), np.std(female_df["age"])))
-    ax2.barh(np.mean(female_df["age"]), height=2 * np.std(female_df["age"]), width=ylim, color="black",
+                # label="mean age {:.2f} $\pm$ {:.2f}"
+                # .format(np.mean(female_df["age"]), np.std(female_df["age"])))
+                label="mean age {:.2f} ({:.2f})"
+                .format(np.mean(female_df["age"]), np.std(female_df["age"])))
+    ax2.barh(np.mean(female_df["age"]), height=2 * np.std(female_df["age"]),
+             width=ylim, color="black",
              alpha=.25)
     ax2.legend(fontsize=fs, loc="lower right")
     ax2.set_xlim(0, ylim)
@@ -292,6 +319,8 @@ def histogram(df_of_ages_genders_and_pathology_status, train_or_eval, alpha=.5, 
     plt.yticks(np.linspace(0, 100, 11), fontsize=fs - 5)
     ax1.tick_params(labelsize=fs - 5)
     ax2.tick_params(labelsize=fs - 5)
-    # plt.savefig("tuh-abnormal-eeg-corpus-train-age-pyramid.pdf", bbox_inches="tight")
+    # plt.savefig("tuh-abnormal-eeg-corpus-train-age-pyramid.pdf",
+    #             bbox_inches="tight")
     if out_dir is not None:
-        plt.savefig(out_dir+"tuh-abnormal-eeg-corpus-hist.pdf", bbox_inches="tight")
+        plt.savefig(out_dir+"tuh-abnormal-eeg-corpus-hist.pdf",
+                    bbox_inches="tight")

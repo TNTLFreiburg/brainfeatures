@@ -3,8 +3,9 @@ import logging
 from mne_features.feature_extraction import extract_features
 import numpy as np
 
-from brainfeatures.utils.data_util import split_into_epochs, \
-    reject_windows_with_outliers, assemble_overlapping_band_limits
+from brainfeatures.utils.data_util import (split_into_epochs,
+                                           reject_windows_with_outliers,
+                                           assemble_overlapping_band_limits)
 
 BAND_LIMITS = np.array(
         [[0, 2], [2, 4],  [4, 8], [8, 13],
@@ -54,7 +55,10 @@ default_mne_feature_generation_params = {
 def generate_mne_features_of_one_file(signals, sfreq, selected_funcs,
                                       func_params, epoch_duration_s,
                                       max_abs_val, agg_mode):
-    agg_mode = None if agg_mode in ["none", "None", None] else getattr(np, agg_mode)
+    if agg_mode in ["none", "None", None]:
+        agg_mode = None
+    else:
+        getattr(np, agg_mode)
 
     epochs = split_into_epochs(signals=signals, sfreq=sfreq,
                                epoch_duration_s=epoch_duration_s)
@@ -71,4 +75,5 @@ def generate_mne_features_of_one_file(signals, sfreq, selected_funcs,
     # aggregate over dimension of epochs
     if agg_mode:
         features = agg_mode(features, axis=0)
+
     return features

@@ -6,12 +6,12 @@ from mne_features.bivariate import get_bivariate_funcs
 from joblib import Parallel, delayed
 import pandas as pd
 
-from brainfeatures.feature_generation.generate_mne_features import \
-    generate_mne_features_of_one_file, default_mne_feature_generation_params
+from brainfeatures.feature_generation.generate_mne_features import (
+    generate_mne_features_of_one_file, default_mne_feature_generation_params)
 from brainfeatures.utils.file_util import pandas_store_as_h5
 from brainfeatures.data_set.tuh_abnormal import TuhAbnormal
-from brainfeatures.utils.sun_grid_engine_util import \
-    determime_curr_file_id
+from brainfeatures.utils.sun_grid_engine_util import (
+    determime_curr_file_id)
 
 
 def process_one_file(data_set, file_id, out_dir, epoch_duration_s,
