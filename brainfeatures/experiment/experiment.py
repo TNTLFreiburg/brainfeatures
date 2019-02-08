@@ -58,9 +58,9 @@ class Experiment(object):
         self._scaler = scaler
         self._clf = estimator
 
+        self._preprocessed = {"devel": [], "eval": []}
         self._features = {"devel": [], "eval": []}
         self._targets = {"devel": [], "eval": []}
-        self._cleaned = {"devel": [], "eval": []}
         self.info = {"devel": {}, "eval": {}}
         self._feature_names = None
         self.performances = {}
@@ -139,7 +139,7 @@ class Experiment(object):
 
             if do_features:
                 if not do_pre:
-                    self._load(set_name, "clean")
+                    self._load(set_name, "preprocessed")
                 self._generate_features(set_name)
 
             if not do_pre and not do_features:
@@ -162,7 +162,7 @@ class Experiment(object):
             either "devel" or "eval"
         """
         start = time.time()
-        logging.info("Making clean ({})".format(set_name))
+        logging.info("Preprocessing ({})".format(set_name))
         if self._preproc_params is not None:
             self._preproc_f = partial(self._preproc_f, **self._preproc_params)
 
@@ -171,11 +171,11 @@ class Experiment(object):
              for (x, fs, y) in self._data_sets[set_name]))
 
         for (x_pre, fs_pre, y_pre) in x_fs_y_pre:
-            self._cleaned[set_name].append(x_pre)
+            self._preprocessed[set_name].append(x_pre)
             self._targets[set_name].append(y_pre)
         if "sfreq" not in self.info[set_name]:
             self.info[set_name]["sfreq"] = fs_pre
-        self.times.setdefault("cleaning", {}).update(
+        self.times.setdefault("preprocessing", {}).update(
             {set_name: time.time() - start})
 
     def _load(self, set_name, set_state):
@@ -188,7 +188,7 @@ class Experiment(object):
         set_name: str
             either "devel" or "eval"
         set_state: str
-            either "clean" or "features"
+            either "preprocessed" or "features"
         """
         start = time.time()
         logging.info("Loading {} ({})".format(set_name, set_state))
@@ -220,7 +220,7 @@ class Experiment(object):
                                        **self._feat_gen_params)
         feature_matrix = Parallel(n_jobs=self._n_jobs)(
             (delayed(self._feat_gen_f)(example, self.info[set_name]["sfreq"])
-             for example in self._cleaned[set_name]))
+             for example in self._preprocessed[set_name]))
         i_to_delete = []
         for i, feature_vector in enumerate(feature_matrix):
             if feature_vector is not None:
@@ -388,10 +388,10 @@ class Experiment(object):
                 "feature_generation_procedure has to be a callable")
         if self._preproc_f is not None:
             assert hasattr(self._preproc_f, "__call__"), (
-                "cleaning_procedure has to be a callable")
+                "preproc_function has to be a callable")
         if self._preproc_params is not None:
             assert type(self._preproc_params) is dict, (
-                "cleaning_params has to be a dictionary")
+                "preproc_params has to be a dictionary")
         if self._feat_gen_params is not None:
             assert type(self._feat_gen_params) is dict, (
                 "feature_generation_params has to be a dictionary")
@@ -433,9 +433,9 @@ class Experiment(object):
                 "pca_thresh has to be either int or float")
             if self._scaler is None:
                 logging.warning("using pca on unscaled features")
-        if "eval" in self._data_sets and self._data_sets["eval"] is None:
+        if self._data_sets["eval"] is None:
+            self._preprocessed.pop("eval")
             self._data_sets.pop("eval")
             self._features.pop("eval")
             self._targets.pop("eval")
-            self._cleaned.pop("eval")
             self.info.pop("eval")
