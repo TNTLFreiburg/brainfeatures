@@ -58,7 +58,9 @@ def get_train_test(X, y, train_ind, test_ind, epoch_to_group_map):
 
     unique_test_groups = unique_groups[test_ind]
     unique_train_groups = unique_groups[train_ind]
-    assert len(unique_groups) == len(X)
+    assert len(unique_groups) == len(X), (
+        "length of groups {} and length of data {} does not match".
+        format(len(unique_groups), len(X)))
 
     X_test, y_test, test_groups = group_X_y(X, y, unique_test_groups,
                                             feature_labels)
@@ -161,18 +163,20 @@ def preds_to_df(id_, predictions, y_true, groups=None):
 def validate(X_train, y_train, clf, n_splits, shuffle_splits,
              scaler=StandardScaler(), pca_thresh=None, do_importances=True):
     """ perform cross validation """
-    decode(X_train=X_train, y_train=y_train, clf=clf, n_runs=n_splits,
-           shuffle_splits=shuffle_splits, X_test=None, y_test=None,
-           scaler=scaler, pca_thresh=pca_thresh, do_importances=do_importances)
+    return decode(X_train=X_train, y_train=y_train, clf=clf, n_runs=n_splits,
+                  shuffle_splits=shuffle_splits, X_test=None, y_test=None,
+                  scaler=scaler, pca_thresh=pca_thresh,
+                  do_importances=do_importances)
 
 
 def final_evaluate(X_train, y_train, clf, n_runs, X_test=None, y_test=None,
                    scaler=StandardScaler(), pca_thresh=None,
                    do_importances=True):
     """ perform final evaluation """
-    decode(X_train=X_train, y_train=y_train, clf=clf, n_runs=n_runs,
-           shuffle_splits=False, X_test=X_test, y_test=y_test, scaler=scaler,
-           pca_thresh=pca_thresh, do_importances=do_importances)
+    return decode(X_train=X_train, y_train=y_train, clf=clf, n_runs=n_runs,
+                  shuffle_splits=False, X_test=X_test, y_test=y_test,
+                  scaler=scaler, pca_thresh=pca_thresh,
+                  do_importances=do_importances)
 
 
 def get_groups_from_cropped(X):
@@ -218,11 +222,11 @@ def decode(X_train, y_train, clf, n_runs, shuffle_splits, X_test=None,
     -------
     """
     cv_or_eval = "valid" if X_test is None and y_test is None else "eval"
-    train_groups = get_groups_from_cropped(X_train)
+    groups = get_groups_from_cropped(X_train)
 
     if cv_or_eval == "eval":
         X, y, _, _, _, _ = get_train_test(
-            X_train, y_train, np.arange(len(X_train)), [], train_groups)
+            X_train, y_train, np.arange(len(X_train)), [], groups)
         test_groups = get_groups_from_cropped(X_test)
         X_test, y_test, _, _, test_groups, _ = get_train_test(
             X_test, y_test, np.arange(len(X_test)), [], test_groups)
@@ -243,14 +247,13 @@ def decode(X_train, y_train, clf, n_runs, shuffle_splits, X_test=None,
                 logging.debug("set random state to {}".format(run_i))
 
             # generator cannot be indexed
-            splits = kf.split(np.unique(train_groups))
+            splits = kf.split(np.unique(groups))
             for i, (train_ind, test_ind) in enumerate(splits):
                 if i == run_i:
                     break
 
             X, y, X_test, y_test, train_groups, test_groups = \
-                get_train_test(X_train, y_train, train_ind, test_ind,
-                               train_groups)
+                get_train_test(X_train, y_train, train_ind, test_ind, groups)
 
         preds_train, preds, dict_of_dfs = decode_once(X, X_test, y, y_test, clf,
                                                       scaler, pca_thresh,
@@ -265,8 +268,9 @@ def decode(X_train, y_train, clf, n_runs, shuffle_splits, X_test=None,
                 value["id"] = pd.Series([run_i] * len(value), index=value.index)
             set_info[key] = set_info[key].append(value, ignore_index=True)
 
-    for key, value in set_info.items():
-        if value.size == 0:
+    keys = list(set_info.keys())
+    for key in keys:
+        if set_info[key].size == 0:
             set_info.pop(key)
 
     return set_preds, {cv_or_eval: set_info}
