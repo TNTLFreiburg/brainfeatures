@@ -2,8 +2,9 @@ from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
 import numpy as np
 
-from brainfeatures.decoding.decode import final_cross_evalidate, \
-    get_train_test, decode_once, apply_pca, apply_scaler
+from brainfeatures.decoding.decode import (validate, final_evaluate,
+                                           get_train_test, decode_once,
+                                           apply_pca, apply_scaler)
 
 
 def test_validate():
@@ -24,9 +25,9 @@ def test_validate():
     expected_2 = np.array(probas2)[:, -1]
 
     X = X[:, np.newaxis]
-    result, info = final_cross_evalidate(X, y, clf, 2, shuffle_splits=False,
-                                         scaler=None, pca_thresh=None,
-                                         do_importances=True)
+    result, info = validate(X, y, clf, 2, shuffle_splits=False,
+                            scaler=None, pca_thresh=None,
+                            do_importances=True)
     preds = result["valid"]
     y_pred = preds[preds.id == 0]["y_pred"]
     np.testing.assert_array_equal(y_pred, expected_1)
