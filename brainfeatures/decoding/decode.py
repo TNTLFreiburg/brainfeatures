@@ -95,8 +95,8 @@ def apply_pca(X_train, X_test, pca_thresh):
     return X_train, X_test, pcs
 
 
-def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
-                pca_thresh=None, do_importances=True):
+def decode_once(X_train, X_test, y_train, y_test, estimator,
+                scaler=StandardScaler(), pca_thresh=None, do_importances=True):
     """ take train and test set, maybe apply a scaler or pca, fit train set,
     predict test set, return predictions"""
     logging.debug("{} examples in train set, {} examples in test set".format(
@@ -110,36 +110,36 @@ def decode_once(X_train, X_test, y_train, y_test, clf, scaler=StandardScaler(),
         X_train, X_test, pcs = apply_pca(X_train, X_test, pca_thresh)
         dict_of_dfs.update({"pca_components": pcs})
         feature_labels = list(pcs.index)
-    clf = clf.fit(X_train, y_train)
+    estimator = estimator.fit(X_train, y_train)
     # TODO: for svm set probability to True?
     if do_importances:
-        if hasattr(clf, "feature_importances_"):
+        if hasattr(estimator, "feature_importances_"):
             # save random forest feature importances for analysis
             feature_importances = pd.DataFrame(
-                [clf.feature_importances_], columns=feature_labels)
+                [estimator.feature_importances_], columns=feature_labels)
             dict_of_dfs.update({"feature_importances": feature_importances})
 
         # rfpimp performances can be applied to any scikit-learn model!
         # rfpimp wants everything as data frame. make sure it gets it
         rfpimp_importances = rfpimp.importances(
-            clf, pd.DataFrame(X_test),
+            estimator, pd.DataFrame(X_test),
             pd.DataFrame(y_test), sort=False)
         dict_of_dfs.update({"rfpimp_importances": rfpimp_importances.T})
 
-    if hasattr(clf, "predict_proba"):
+    if hasattr(estimator, "predict_proba"):
         # save probabilities of positive class (equal to 1 - negative class)
-        y_hat_train = clf.predict_proba(X_train)
+        y_hat_train = estimator.predict_proba(X_train)
         y_hat_train = y_hat_train[:, -1]
-        y_hat = clf.predict_proba(X_test)
+        y_hat = estimator.predict_proba(X_test)
         y_hat = y_hat[:, -1]
-    elif hasattr(clf, "decision_function"):
+    elif hasattr(estimator, "decision_function"):
         # for auc save svm distance of points to margin
-        y_hat = clf.decision_function(X_test)
-        y_hat_train = clf.decision_function(X_train)
+        y_hat = estimator.decision_function(X_test)
+        y_hat_train = estimator.decision_function(X_train)
     else:
         # create labels
-        y_hat = clf.predict(X_test)
-        y_hat_train = clf.predict(X_train)
+        y_hat = estimator.predict(X_test)
+        y_hat_train = estimator.predict(X_train)
     return y_hat_train, y_hat, dict_of_dfs
 
 
@@ -160,22 +160,22 @@ def preds_to_df(id_, predictions, y_true, groups=None):
     return predictions_df
 
 
-def validate(X_train, y_train, clf, n_splits, shuffle_splits,
+def validate(X_train, y_train, estimator, n_splits, shuffle_splits,
              scaler=StandardScaler(), pca_thresh=None, do_importances=True):
     """ perform cross validation """
-    return decode(X_train=X_train, y_train=y_train, clf=clf, n_runs=n_splits,
-                  shuffle_splits=shuffle_splits, X_test=None, y_test=None,
-                  scaler=scaler, pca_thresh=pca_thresh,
+    return decode(X_train=X_train, y_train=y_train, estimator=estimator,
+                  n_runs=n_splits, shuffle_splits=shuffle_splits, X_test=None,
+                  y_test=None, scaler=scaler, pca_thresh=pca_thresh,
                   do_importances=do_importances)
 
 
-def final_evaluate(X_train, y_train, clf, n_runs, X_test=None, y_test=None,
-                   scaler=StandardScaler(), pca_thresh=None,
+def final_evaluate(X_train, y_train, estimator, n_runs, X_test=None,
+                   y_test=None, scaler=StandardScaler(), pca_thresh=None,
                    do_importances=True):
     """ perform final evaluation """
-    return decode(X_train=X_train, y_train=y_train, clf=clf, n_runs=n_runs,
-                  shuffle_splits=False, X_test=X_test, y_test=y_test,
-                  scaler=scaler, pca_thresh=pca_thresh,
+    return decode(X_train=X_train, y_train=y_train, estimator=estimator,
+                  n_runs=n_runs, shuffle_splits=False, X_test=X_test,
+                  y_test=y_test, scaler=scaler, pca_thresh=pca_thresh,
                   do_importances=do_importances)
 
 
@@ -187,7 +187,7 @@ def get_groups_from_cropped(X):
     return groups
 
 
-def decode(X_train, y_train, clf, n_runs, shuffle_splits, X_test=None,
+def decode(X_train, y_train, estimator, n_runs, shuffle_splits, X_test=None,
            y_test=None, scaler=StandardScaler(), pca_thresh=None,
            do_importances=True):
     """
@@ -199,7 +199,7 @@ def decode(X_train, y_train, clf, n_runs, shuffle_splits, X_test=None,
         list of data frames with n_windows x n_features
     y_train: list
         train targets
-    clf:
+    estimator:
         an estimator following sickit-learn api
     n_runs: int
         number of cv splits or final evaluation repetitions
@@ -242,8 +242,8 @@ def decode(X_train, y_train, clf, n_runs, shuffle_splits, X_test=None,
     for run_i in range(n_runs):
         logging.debug("this is run {}".format(run_i))
         if cv_or_eval == "valid":
-            if hasattr(clf, "random_state"):
-                clf.random_state = run_i
+            if hasattr(estimator, "random_state"):
+                estimator.random_state = run_i
                 logging.debug("set random state to {}".format(run_i))
 
             # generator cannot be indexed
@@ -255,9 +255,8 @@ def decode(X_train, y_train, clf, n_runs, shuffle_splits, X_test=None,
             X, y, X_test, y_test, train_groups, test_groups = \
                 get_train_test(X_train, y_train, train_ind, test_ind, groups)
 
-        preds_train, preds, dict_of_dfs = decode_once(X, X_test, y, y_test, clf,
-                                                      scaler, pca_thresh,
-                                                      do_importances)
+        preds_train, preds, dict_of_dfs = decode_once(
+            X, X_test, y, y_test, estimator, scaler, pca_thresh, do_importances)
         preds_df = preds_to_df(run_i, preds, y_test, test_groups)
         set_preds[cv_or_eval] = set_preds[cv_or_eval].append(preds_df)
         preds_train_df = preds_to_df(run_i, preds_train, y, train_groups)

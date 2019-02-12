@@ -4,14 +4,8 @@ from functools import partial
 import logging
 import time
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score
 from joblib import Parallel, delayed
 
-from brainfeatures.feature_generation.generate_features import (
-    generate_features_of_one_file as feat_gen_f,
-    default_feature_generation_params as feat_gen_params)
 from brainfeatures.analysis.analyze import (
     analyze_quality_of_predictions, analyze_feature_importances,
     analyze_feature_correlations, analyze_pca_components)
@@ -25,20 +19,20 @@ class Experiment(object):
     def __init__(
             self,
             devel_set,
-            estimator=RandomForestClassifier(n_estimators=100),
-            metrics=accuracy_score,
+            analyze_features=True,
+            estimator=None,
             eval_set=None,
+            feature_generation_function=None,
+            feature_generation_params=None,
+            feature_vector_modifier=None,
+            metrics=None,
             n_jobs=1,
+            n_splits_or_repetitions=5,
+            pca_thresh=None,
             preproc_function=None,
             preproc_params=None,
-            feature_generation_function=feat_gen_f,
-            feature_generation_params=feat_gen_params,
-            n_splits_or_repetitions=5,
+            scaler=None,
             shuffle_splits=False,
-            pca_thresh=None,
-            scaler=StandardScaler(),
-            feature_vector_modifier=None,
-            analyze_features=True,
             verbosity="INFO"):
 
         self._data_sets = OrderedDict([("devel", devel_set),
@@ -52,11 +46,11 @@ class Experiment(object):
         self._shuffle_splits = shuffle_splits
         self._preproc_f = preproc_function
         self._pca_thresh = pca_thresh
+        self._estimator = estimator
         self._verbosity = verbosity
         self._metrics = metrics
         self._n_jobs = n_jobs
         self._scaler = scaler
-        self._clf = estimator
 
         self._preprocessed = {"devel": [], "eval": []}
         self._features = {"devel": [], "eval": []}
@@ -67,8 +61,12 @@ class Experiment(object):
         self.predictions = {}
         self.times = {}
 
-        # use argparse?
         self._run_checks()
+        if feature_generation_params is not None:
+            self._feat_gen_f = partial(feature_generation_function,
+                                       **feature_generation_params)
+        if preproc_params is not None:
+            self._preproc_f = partial(preproc_function, **preproc_params)
     """
     Class that performs one feature-based experiment on development (and
     evaluation) set.
@@ -76,14 +74,16 @@ class Experiment(object):
     It is structured as follows:
 
     1. (optional) Read raw data from given data set(s) (devel_set, eval_set) and 
-                  apply given preprocessing rules (preproc_function).
+                  apply given preprocessing rules (preproc_function with 
+                  preproc_params).
     2. (optional) Take previously preprocessed signals / read preprocessed 
                   signals from given data set(s) (devel_set, eval_set) and 
-                  generate features (feature_generation_function).
+                  generate features (feature_generation_function with 
+                  feature_generation_params).
     3. (optional) Take previously generated features / read generated features
                   from given data set(s) (devel_set, eval_set) and run 
-                  (cross)-validation or final evaluation using given classifier 
-                  (estimator), and evaluate it using given metric(s).
+                  (cross)-validation (and final evaluation) using given 
+                  classifier (estimator), and evaluate it using given metric(s).
 
     Parameters
     ----------
@@ -130,22 +130,23 @@ class Experiment(object):
         today, now = date.today(), datetime.time(datetime.now())
         logging.info('Started on {} at {}'.format(today, now))
 
-        do_pre = self._preproc_f is not None
-        do_features = self._feat_gen_f is not None
-        do_predictions = self._clf is not None and self._features["devel"]
+        preprocess = self._preproc_f is not None
+        generate_features = self._feat_gen_f is not None
+        predict = self._estimator is not None and self._features["devel"]
+
         for set_name in self._data_sets.keys():
-            if do_pre:
+            if preprocess:
                 self._preprocess(set_name)
 
-            if do_features:
-                if not do_pre:
+            if generate_features:
+                if not preprocess:
                     self._load(set_name, "preprocessed")
                 self._generate_features(set_name)
 
-            if not do_pre and not do_features:
+            if not preprocess and not generate_features:
                 self._load(set_name, "features")
 
-            if do_predictions:
+            if predict:
                 self._decode(set_name)
 
         today, now = date.today(), datetime.time(datetime.now())
@@ -163,9 +164,6 @@ class Experiment(object):
         """
         start = time.time()
         logging.info("Preprocessing ({})".format(set_name))
-        if self._preproc_params is not None:
-            self._preproc_f = partial(self._preproc_f, **self._preproc_params)
-
         x_fs_y_pre = Parallel(n_jobs=self._n_jobs)(
             (delayed(self._preproc_f)(x, fs, y)
              for (x, fs, y) in self._data_sets[set_name]))
@@ -195,7 +193,6 @@ class Experiment(object):
         for (x, fs, y) in self._data_sets[set_name]:
             getattr(self, "_" + set_state)[set_name].append(x)
             self._targets[set_name].append(y)
-        # store feature names and sampling frequency
         if "sfreq" not in self.info[set_name]:
             self.info[set_name]["sfreq"] = fs
         if self._feature_names is None:
@@ -215,9 +212,6 @@ class Experiment(object):
         """
         start = time.time()
         logging.info("Generating features ({})".format(set_name))
-        if self._feat_gen_params is not None:
-            self._feat_gen_f = partial(self._feat_gen_f,
-                                       **self._feat_gen_params)
         feature_matrix = Parallel(n_jobs=self._n_jobs)(
             (delayed(self._feat_gen_f)(example, self.info[set_name]["sfreq"])
              for example in self._preprocessed[set_name]))
@@ -236,8 +230,9 @@ class Experiment(object):
         if self._feature_names is None:
             self._feature_names = list(feature_vector.columns)
         assert len(self._features[set_name]) == len(self._targets[set_name]), (
-            "number of feature vectors does not match number of labels")
-        self.times.setdefault("feature generat ion", {}).update(
+            "number of feature vectors {} and labels {} does not match".
+            format(len(self._features[set_name]), len(self._targets[set_name])))
+        self.times.setdefault("feature generation", {}).update(
             {set_name: time.time() - start})
 
     def _decode(self, set_name):
@@ -258,13 +253,15 @@ class Experiment(object):
                                        self._feature_names))
             assert len(self._features[set_name]) > 0, (
                 "removed all feature vectors")
-            assert self._features[set_name][0].shape[-1] == \
-                len(self._feature_names), ("number of features and feature "
-                                           "names does not match")
+            assert (self._features[set_name][0].shape[-1] ==
+                    len(self._feature_names)), (
+                "number of features {} and feature names {} does not match"
+                .format(self._features[set_name][0].shape[-1],
+                        len(self._feature_names)))
         if set_name == "devel":
             self._validate()
         else:
-            assert set_name == "eval", "unknown set name"
+            assert set_name == "eval", "unknown set name {}".format(set_name)
             self._final_evaluate()
 
         if self._metrics is not None:
@@ -277,11 +274,12 @@ class Experiment(object):
         start = time.time()
         logging.info("Making predictions (validation)")
         assert len(self._features["devel"]) == len(self._targets["devel"]), (
-            "number of devel examples and labels differs!")
+            "number of feature vectors {} and labels {} does not match"
+            .format(len(self._features["devel"]), len(self._targets["devel"])))
         valid_results, valid_info = validate(
             X_train=self._features["devel"],
             y_train=self._targets["devel"],
-            clf=self._clf,
+            estimator=self._estimator,
             n_splits=self._n_runs,
             shuffle_splits=self._shuffle_splits,
             scaler=self._scaler,
@@ -324,13 +322,14 @@ class Experiment(object):
         start = time.time()
         logging.info("Making predictions (final evaluation)")
         assert len(self._features["eval"]) == len(self._targets["eval"]), (
-            "number of eval examples and labels differs!")
+            "number of feature vectors {} and labels {} does not match".
+            format(len(self._features["eval"]), len(self._targets["eval"])))
         eval_results, eval_info = final_evaluate(
             X_train=self._features["devel"],
             y_train=self._targets["devel"],
             X_test=self._features["eval"],
             y_test=self._targets["eval"],
-            clf=self._clf,
+            estimator=self._estimator,
             n_runs=self._n_runs,
             scaler=self._scaler,
             pca_thresh=self._pca_thresh,
@@ -353,14 +352,12 @@ class Experiment(object):
         set_name: str
             either "devel" or "eval"
         """
-        feature_correlations = analyze_feature_correlations(
-            self._features[set_name])
-        self.info[set_name].update({"feature_correlations":
-                                    feature_correlations})
+        feature_corrs = analyze_feature_correlations(self._features[set_name])
+        self.info[set_name].update({"feature_correlations": feature_corrs})
         if set_name == "devel":
             set_name = "valid"
         else:
-            assert set_name == "eval", "unknown set name"
+            assert set_name == "eval", "unknown set name {}".format(set_name)
 
         if self._pca_thresh is not None:
             pca_features = analyze_pca_components(
@@ -381,8 +378,10 @@ class Experiment(object):
         """
         Assure conformity of given arguments.
         """
-        assert self._verbosity in ["DEBUG", "INFO", "WARNING", "ERROR", 0,
-                                   10, 20, 30, 40], "unknown verbosity level"
+        # use argparse?
+        assert self._verbosity in ["DEBUG", "INFO", "WARNING", "ERROR", 0, 10,
+                                   20, 30, 40], ("unknown verbosity level {}"
+                                                 .format(self._verbosity))
         if self._feat_gen_f is not None:
             assert hasattr(self._feat_gen_f, "__call__"), (
                 "feature_generation_procedure has to be a callable")
@@ -403,17 +402,16 @@ class Experiment(object):
         assert self._shuffle_splits in [True, False], (
             "shuffle_splits has to be boolean")
         assert type(self._n_runs) is int and (
-            self._n_runs > 0, "n_repetitions has to be an integer larger than "
-                              "0")
-        if self._data_sets["eval"] is None:
+            self._n_runs > 0, "n_repetitions has to be an integer larger 0")
+        if self._data_sets["eval"] is None and self._estimator is not None:
             assert self._n_runs >= 2, "need at least two splits for cv"
         assert type(self._n_jobs) is int and self._n_jobs >= -1, (
             "n_jobs has to be an integer larger or equal to -1")
         if self._feature_modifier is not None:
             assert callable(self._feature_modifier), (
                 "modifier has to be a callable")
-        if hasattr(self._clf, "n_jobs"):
-            self._clf.n_jobs = self._n_jobs
+        if hasattr(self._estimator, "n_jobs"):
+            self._estimator.n_jobs = self._n_jobs
         if self._metrics is not None and not hasattr(self._metrics, "__len__"):
             self._metrics = [self._metrics]
         if self._scaler is not None:
@@ -422,10 +420,10 @@ class Experiment(object):
                 assert hasattr(self._scaler, scaling_function), (
                     "scaler is not following scikit-learn api ({})"
                     .format(scaling_function))
-        if self._clf is not None:
+        if self._estimator is not None:
             decoding_functions = ["fit", "predict"]
             for decoding_function in decoding_functions:
-                assert hasattr(self._clf, decoding_function), (
+                assert hasattr(self._estimator, decoding_function), (
                     "classifier is not following scikit-learn api ({})"
                     .format(decoding_function))
         if self._pca_thresh:
@@ -433,6 +431,11 @@ class Experiment(object):
                 "pca_thresh has to be either int or float")
             if self._scaler is None:
                 logging.warning("using pca on unscaled features")
+        if self._estimator is self._preproc_f is self._feat_gen_f is None:
+            logging.warning("specify 'preproc_function' to do preprocessing, "
+                            "'feature_generation_function' to generate "
+                            "features or 'estimator' to make predictions"
+                            .format(""))
         if self._data_sets["eval"] is None:
             self._preprocessed.pop("eval")
             self._data_sets.pop("eval")
