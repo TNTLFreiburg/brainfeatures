@@ -225,7 +225,7 @@ def decode(X_train, y_train, estimator, n_runs, shuffle_splits, X_test=None,
     groups = get_groups_from_cropped(X_train)
 
     if cv_or_eval == "eval":
-        X, y, _, _, _, _ = get_train_test(
+        X, y, _, _, train_groups, _ = get_train_test(
             X_train, y_train, np.arange(len(X_train)), [], groups)
         test_groups = get_groups_from_cropped(X_test)
         X_test, y_test, _, _, test_groups, _ = get_train_test(

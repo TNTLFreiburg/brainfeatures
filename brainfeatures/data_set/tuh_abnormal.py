@@ -51,7 +51,7 @@ def _read_all_file_names(path, extension, key="time"):
     file_names = sorted(file_paths, key=sorting_key)
 
     assert len(file_names) > 0, ("something went wrong. Found no {} files in {}"
-        .format(extension, path))
+                                 .format(extension, path))
     return file_names
 
 
@@ -64,7 +64,6 @@ class TuhAbnormal(DataSet):
         'FZ', 'O1', 'O2', 'P3', 'P4', 'PZ', 'T3', 'T4', 'T5', 'T6']),
                  key="time", n_recordings=None, target="pathological",
                  max_recording_mins=None, ch_name_pattern="EEG {}-REF"):
-        super(TuhAbnormal, self).__init__()
         self.max_recording_mins = max_recording_mins
         self.ch_name_pattern = ch_name_pattern
         self.n_recordings = n_recordings
@@ -94,8 +93,8 @@ class TuhAbnormal(DataSet):
             self.data_path, self.extension, self.key)
 
         assert self.subset in self.file_names[0], (
-            "cannot parse train or eval from file name {}"
-            .format(self.file_names[0]))
+            "cannot parse {} from file name {}"
+            .format(self.subset, self.file_names[0]))
 
         # prune this file names to train or eval subset
         self.file_names = [file_name for file_name in self.file_names
@@ -183,8 +182,32 @@ class TuhAbnormal(DataSet):
         return len(self.file_names)
 
 
+class TuhAbnormalSubset(DataSet):
+    def __init__(self, dataset, indeces):
+        self.file_names = [dataset.file_names[i] for i in indeces]
+        self.targets = [dataset.targets[i] for i in indeces]
+        self.target = dataset.target
+        self.sfreqs = [dataset.sfreqs[i] for i in indeces]
+        self.ages = [dataset.ages[i] for i in indeces]
+        self.genders = [dataset.genders[i] for i in indeces]
+        self.pathologicals = [dataset.pathologicals[i] for i in indeces]
+
+    def __len__(self):
+        return len(self.file_names)
+
+    def __getitem__(self, idx):
+        file_ = self.file_names[idx]
+        label = self.targets[idx]
+        signals = pd.read_hdf(file_, key="data")
+        x_dim, y_dim = signals.shape
+        if x_dim > y_dim:
+            signals = signals.T
+        sfreq = self.sfreqs[idx]
+        return signals, sfreq, label
+
+
 # this function is called once for devel, once for eval set.
-# on second call dont add feature name, but add met afeature!
+# on second call don't add feature name, but add metafeature!
 def add_meta_feature(data_set, features, feature_labels):
     """ modify the feature vectors of a data set. here, we add additional
      meta features age and gender """
