@@ -33,7 +33,7 @@ def _time_key(file_name):
     return date_id + session_id + recording_id
 
 
-def _read_all_file_names(path, extension, key="time"):
+def read_all_file_names(path, extension, key="time"):
     """ read all files with specified extension from given path
     :param path: parent directory holding the files directly or in
     subdirectories
@@ -73,6 +73,7 @@ class TuhAbnormal(DataSet):
         self.target = target
         self.subset = subset
         self.key = key
+        self.gender_int_map = {"M": 0, "F": 1}
 
         self.pathologicals = []
         self.file_names = []
@@ -89,7 +90,7 @@ class TuhAbnormal(DataSet):
 
     def load(self):
         # read all file names in path with given extension sorted by key
-        self.file_names = _read_all_file_names(
+        self.file_names = read_all_file_names(
             self.data_path, self.extension, self.key)
 
         assert self.subset in self.file_names[0], (
@@ -136,8 +137,14 @@ class TuhAbnormal(DataSet):
                 self.sfreqs.append(info["sfreq"])
 
             # encode gender string as integer
-            assert gender in ["M", "F"], "unknown gender"
-            gender = 0 if gender == "M" else 1
+#            assert gender in ["M", "F"], "unknown gender"
+            if gender in self.gender_int_map.keys():
+                gender = self.gender_int_map[gender]
+            else:
+                assert gender in self.gender_int_map.values(), "unknown gender"
+#            assert gender in self.gender_int_map.keys() or gender in self.gender_int_map.values(), "unknown gender"
+#            gender = 0 if gender == "M" else 1
+ #           gender = self.gender_int_map[gender]
 
             targets = {"pathological": pathological, "age": age,
                        "gender": gender}
