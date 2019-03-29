@@ -65,16 +65,19 @@ def get_duration_with_raw_mne(file_path):
     return int(n_sampels / sfreq)
 
 
-def parse_age_and_gender_from_edf_header(file_path):
+def parse_age_and_gender_from_edf_header(file_path, return_raw_header=False):
     """ parse sex and age of patient from the patient_id in the header of the
     edf file
     :param file_path: path of the recording
+    :param return_raw_header: whether to return raw header or parse age/gender
     :return: gender (M, X, F) and age of patient
     """
     assert os.path.exists(file_path), "file not found {}".format(file_path)
     f = open(file_path, 'rb')
     content = f.read(88)
     f.close()
+    if return_raw_header:
+        return content
     patient_id = content[8:88].decode('ascii')
     [age] = re.findall("Age:(\d+)", patient_id)
     [gender] = re.findall("\s(\w)\s", patient_id)
