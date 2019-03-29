@@ -59,7 +59,8 @@ def process_one_file(data_set, file_id, in_dir, out_dir, dtype,
     logging.info("wrote clean signals to {}".format(new_file_name))
 
 
-def preprocess_main(data_set, in_dir, out_dir, run_on_cluster, dtype, n_jobs):
+def preprocess_main(data_set, in_dir, out_dir, run_on_cluster, dtype, n_jobs,
+                    preproc_params):
     """ runs either one file on cluster (id specified by array job id) or all
     files locally """
     log = logging.getLogger()
@@ -81,7 +82,7 @@ def preprocess_main(data_set, in_dir, out_dir, run_on_cluster, dtype, n_jobs):
 
     Parallel(n_jobs=n_jobs)(delayed(process_one_file)
                             (data_set, file_id, in_dir, out_dir, dtype,
-                             **default_preproc_params) for file_id in file_ids)
+                             **preproc_params) for file_id in file_ids)
 
     today, now = date.today(), datetime.time(datetime.now())
     logging.info('finished on {} at {}'.format(today, now))
@@ -99,5 +100,6 @@ if __name__ == "__main__":
         out_dir=data_dir.replace("raw", "pre"),
         run_on_cluster=False,
         dtype=np.float32,
-        n_jobs=1
+        n_jobs=1,
+        preproc_params=default_preproc_params
     )
