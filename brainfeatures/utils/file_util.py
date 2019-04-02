@@ -103,6 +103,63 @@ def natural_key(string):
 #     return re.findall(p, string)
 
 
+def save_exp(exp, save_raw=False, out_dir=None):
+    for i in range(exp._n_runs):
+        for subset in ["train", "valid"]:
+            preds = exp.predictions[subset]
+            performances = exp.performances[subset]
+            if out_dir is not None:
+                preds.to_csv(out_dir + "predictions_{}.csv".format(subset, i))
+                performances.to_csv(
+                    out_dir + "performances_{}.csv".format(subset, i))
+        config = {}
+        config.update({"shuffle": exp._shuffle_splits})
+        config.update({"n_runs": exp._n_runs})
+        config.update({"n_jobs": exp._n_jobs})
+        if exp._preproc_params is not None:
+            config.update(exp._preproc_params)
+        if exp._feat_gen_params is not None:
+            config.update(exp._feat_gen_params)
+        if exp._pca_thresh is not None:
+            config.update({"pca_thresh": exp._pca_thresh})
+
+        for key, value in exp.times.items():
+            if type(value) is dict:
+                for key2, value2 in value.items():
+                    config.update({'_'.join(["time", key, key2]): value2})
+            else:
+                config.update({'_'.join(["time", key]): value})
+
+        config.update({"n_features": len(exp._feature_names)})
+
+        d = {}
+        params = exp._estimator.__dict__[
+            "estimator_params"] if "estimator_params" in exp._estimator.__dict__ else []
+        for param in params:
+            d.update(
+                {'_'.join(["model", param]): exp._estimator.__dict__[param]})
+        config.update(d)
+        if "n_estimators" in exp._estimator.__dict__:
+            config.update(
+                {"n_estimators": exp._estimator.__dict__["n_estimators"]})
+
+        config.update({"sfreq": exp.info["devel"]["sfreq"]})
+        config.update(
+            {"model": str(exp._estimator.__class__).split('.')[-1][:-2]})
+
+        for param in ["C", "gamma", "kernel"]:
+            if param in exp._estimator.__dict__:
+                if param == "gamma":
+                    param = '_' + param
+                config.update({'_'.join(["model", param]):
+                                   exp._estimator.__dict__[param]})
+
+        if out_dir is not None:
+            with open(out_dir + "config.json", "w") as json_file:
+                json.dump(config, json_file, indent=4, sort_keys=True)
+    return config
+
+
 def read_feature_results(directory, models, decoding_tasks, decoding_types):
     from sklearn.metrics import (roc_auc_score, accuracy_score, roc_curve,
                                  mean_squared_error)
