@@ -1,11 +1,11 @@
+import pandas as pd
+import numpy as np
 import logging
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
 from sklearn.decomposition.pca import PCA
-import pandas as pd
-import numpy as np
-import rfpimp
+# import rfpimp
 
 
 def get_X_y(data_set, agg_f=None):
@@ -121,11 +121,10 @@ def decode_once(X_train, X_test, y_train, y_test, estimator,
 
         # rfpimp performances can be applied to any scikit-learn model!
         # rfpimp wants everything as data frame. make sure it gets it
-        rfpimp_importances = rfpimp.importances(
-            estimator, pd.DataFrame(X_test),
-            pd.DataFrame(y_test), sort=False)
-        dict_of_dfs.update({"rfpimp_importances": rfpimp_importances.T})
-
+        # rfpimp_importances = rfpimp.importances(
+        #     estimator, pd.DataFrame(X_test),
+        #     pd.DataFrame(y_test), sort=False)
+        # dict_of_dfs.update({"rfpimp_importances": rfpimp_importances.T})
     if hasattr(estimator, "predict_proba"):
         # save probabilities of positive class (equal to 1 - negative class)
         y_hat_train = estimator.predict_proba(X_train)
