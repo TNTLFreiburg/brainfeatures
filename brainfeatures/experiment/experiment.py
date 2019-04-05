@@ -146,6 +146,10 @@ class Experiment(object):
             if not preprocess and not generate_features:
                 self._load(set_name, "features")
 
+            # don't do cross-validation before final evaluation
+            if "eval" in self._data_sets.keys():
+                continue
+
             if predict:
                 self._decode(set_name)
 
