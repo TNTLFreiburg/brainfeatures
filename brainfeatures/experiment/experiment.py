@@ -132,11 +132,7 @@ class Experiment(object):
 
         preprocess = self._preproc_f is not None
         generate_features = self._feat_gen_f is not None
-        predict = {
-            "devel": (self._estimator is not None and self._features["devel"]
-                      and not self._data_sets["eval"]),
-            "eval": (self._estimator is not None and self._features["devel"]
-                     and self._features["eval"])}
+        predict = self._estimator is not None and self._features["devel"]
 
         for set_name in self._data_sets.keys():
             if preprocess:
@@ -150,8 +146,8 @@ class Experiment(object):
             if not preprocess and not generate_features:
                 self._load(set_name, "features")
 
-            if predict[set_name]:
-                self._decode(set_name)
+        if predict:
+            self._decode(set_name)
 
         today, now = date.today(), datetime.time(datetime.now())
         logging.info("Finished on {} at {}.".format(today, now))
