@@ -255,60 +255,73 @@ def plot_scaled_mean_importances(list_of_properties_and_name,
 
 
 def histogram(df_of_ages_genders_and_pathology_status, train_or_eval, alpha=.5,
-              fs=24, ylim=20, bins=np.linspace(0, 100, 101), out_dir=None):
+              fs=24, ylim=20, bins=np.linspace(0, 100, 101), out_dir=None,
+              show_title=True):
     df = df_of_ages_genders_and_pathology_status
-    male_df = df[df["gender"] == "M"]
-    female_df = df[df["gender"] == "F"]
+    male_df = df[df["genders"] == 0]
+    female_df = df[df["genders"] == 1]
 
-    male_abnormal_df = male_df[male_df["pathological"] == 1]
-    male_normal_df = male_df[male_df["pathological"] == 0]
-    female_abnormal_df = female_df[female_df["pathological"] == 1]
-    female_normal_df = female_df[female_df["pathological"] == 0]
+    male_abnormal_df = male_df[male_df["pathologicals"] == 1]
+    male_normal_df = male_df[male_df["pathologicals"] == 0]
+    female_abnormal_df = female_df[female_df["pathologicals"] == 1]
+    female_normal_df = female_df[female_df["pathologicals"] == 0]
 
     f, (ax1, ax2) = plt.subplots(ncols=2, sharey=True, sharex=False,
                                  figsize=(15, 18))
-    plt.suptitle(train_or_eval+" histogram", y=.9, fontsize=fs+5)
-    ax1.hist(x=male_abnormal_df["age"], bins=bins, alpha=alpha, color="blue",
+    if show_title:
+        plt.suptitle(train_or_eval+" histogram", y=.9, fontsize=fs+5)
+
+    ax1.hist(x=male_normal_df["ages"], bins=bins, alpha=alpha, color="green",
              orientation="horizontal",
-             label="pathological ({:.2f}%)".format(len(male_abnormal_df) /
-                                                   len(male_df) * 100))
-    ax1.hist(x=male_normal_df["age"], bins=bins, alpha=alpha, color="green",
-             orientation="horizontal",
-             label="normal ({:.2f}%)".format(len(male_normal_df) /
+             label="normal ({:.1f}%)".format(len(male_normal_df) /
                                              len(male_df) * 100))
-    ax1.axhline(np.mean(male_df["age"]), color="black",
+
+    ax1.hist(x=male_abnormal_df["ages"], bins=bins, alpha=alpha, color="blue",
+             orientation="horizontal",
+             label="pathological ({:.1f}%)".format(len(male_abnormal_df) /
+                                                   len(male_df) * 100))
+
+    ax1.axhline(np.mean(male_df["ages"]), color="black",
                 # label="mean age {:.2f} $\pm$ {:.2f}".format(
                 #     np.mean(male_df["age"]), np.std(male_df["age"])))
-                label="mean age {:.2f} ({:.2f})"
-                .format(np.mean(male_df["age"]), np.std(male_df["age"])))
-    ax1.barh(np.mean(male_df["age"]), height=2 * np.std(male_df["age"]),
+                label="mean age {:.1f} ($\pm$ {:.1f})"
+                .format(np.mean(male_df["ages"]), np.std(male_df["ages"])))
+    ax1.barh(np.mean(male_df["ages"]), height=2 * np.std(male_df["ages"]),
              width=ylim, color="black", alpha=.25)
     ax1.set_xlim(0, ylim)
+
+    # handles, labels = plt.gca().get_legend_handles_labels()
+    # order = [2, 1, 0]
+    # plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order])
+
     ax1.legend(fontsize=fs, loc="lower left")
-    ax1.set_title("male ({:.2f}%)".format(100 * float(len(male_df) / len(df))),
+    ax1.set_title("male ({:.1f}%)".format(100 * float(len(male_df) / len(df))),
                   fontsize=fs, loc="left", y=.95, x=.05)
     ax1.invert_xaxis()
 
-    ax2.hist(x=female_abnormal_df["age"], bins=bins, alpha=alpha, color="red",
+    # second axis
+    ax2.hist(x=female_normal_df["ages"], bins=bins, alpha=alpha, color="orange",
              orientation="horizontal",
-             label="pathological ({:.2f}%)".format(len(female_abnormal_df) /
-                                                   len(female_df) * 100))
-    ax2.hist(x=female_normal_df["age"], bins=bins, alpha=alpha, color="orange",
-             orientation="horizontal",
-             label="normal ({:.2f}%)".format(len(female_normal_df) /
+             label="normal ({:.1f}%)".format(len(female_normal_df) /
                                              len(female_df) * 100))
-    ax2.axhline(np.mean(female_df["age"]), color="black", linestyle="--",
+
+    ax2.hist(x=female_abnormal_df["ages"], bins=bins, alpha=alpha, color="red",
+             orientation="horizontal",
+             label="pathological ({:.1f}%)".format(len(female_abnormal_df) /
+                                                   len(female_df) * 100))
+
+    ax2.axhline(np.mean(female_df["ages"]), color="black", linestyle="--",
                 # label="mean age {:.2f} $\pm$ {:.2f}"
                 # .format(np.mean(female_df["age"]), np.std(female_df["age"])))
-                label="mean age {:.2f} ({:.2f})"
-                .format(np.mean(female_df["age"]), np.std(female_df["age"])))
-    ax2.barh(np.mean(female_df["age"]), height=2 * np.std(female_df["age"]),
+                label="mean age {:.1f} ($\pm$ {:.1f})"
+                .format(np.mean(female_df["ages"]), np.std(female_df["ages"])))
+    ax2.barh(np.mean(female_df["ages"]), height=2 * np.std(female_df["ages"]),
              width=ylim, color="black",
              alpha=.25)
     ax2.legend(fontsize=fs, loc="lower right")
     ax2.set_xlim(0, ylim)
     # ax1.invert_yaxis()
-    ax2.set_title("female ({:.2f}%)".format(100 * len(female_df) / len(df)),
+    ax2.set_title("female ({:.1f}%)".format(100 * len(female_df) / len(df)),
                   fontsize=fs, loc="right", y=.95, x=.95)  # , y=.005)
 
     plt.ylim(0, 100)
@@ -322,5 +335,5 @@ def histogram(df_of_ages_genders_and_pathology_status, train_or_eval, alpha=.5,
     # plt.savefig("tuh-abnormal-eeg-corpus-train-age-pyramid.pdf",
     #             bbox_inches="tight")
     if out_dir is not None:
-        plt.savefig(out_dir+"tuh-abnormal-eeg-corpus-hist.pdf",
+        plt.savefig(out_dir+"tuh_{}.pdf".format(train_or_eval),
                     bbox_inches="tight")
