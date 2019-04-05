@@ -116,8 +116,8 @@ def save_exp(exp, save_raw=False, out_dir=None):
     for i in range(exp._n_runs):
         for subset in exp.predictions.keys():
             preds = exp.predictions[subset]
-            performances = exp.performances[subset]
-            if out_dir is not None:
+            if subset in exp.performances.keys() and out_dir is not None:
+                performances = exp.performances[subset]
                 preds.to_csv(out_dir + "predictions_{}.csv".format(subset, i))
                 performances.to_csv(
                     out_dir + "performances_{}.csv".format(subset, i))
