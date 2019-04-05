@@ -112,10 +112,13 @@ def save_exp(exp, save_raw=False, out_dir=None):
     if save_raw:
         with open(out_dir + "exp.pkl", "wb") as pickle_file:
             pickle.dump(exp, pickle_file)
+    config = {}
     for i in range(exp._n_runs):
         for subset in exp.predictions.keys():
             preds = exp.predictions[subset]
+            config.update({'_'.join([subset, "predictions"]): preds})
             performances = exp.performances[subset]
+            config.update({'_'.join([subset, "performances"]): performances})
             if out_dir is not None:
                 preds.to_csv(out_dir + "predictions_{}.csv".format(subset, i))
                 performances.to_csv(
@@ -124,10 +127,11 @@ def save_exp(exp, save_raw=False, out_dir=None):
             if subset in exp.info.keys() and "feature_importances" in \
                     exp.info[subset].keys():
                 feature_importances = exp.info[subset]["feature_importances"]
+                config.update({"feature_importances": feature_importances})
                 if out_dir is not None:
                     feature_importances.to_csv(
                         out_dir + "feature_importances{}.csv".format(subset, i))
-    config = {}
+
     config.update({"shuffle": exp._shuffle_splits})
     config.update({"n_runs": exp._n_runs})
     config.update({"n_jobs": exp._n_jobs})
