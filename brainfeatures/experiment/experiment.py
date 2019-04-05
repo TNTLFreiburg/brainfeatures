@@ -131,6 +131,7 @@ class Experiment(object):
         logging.info('Started on {} at {}'.format(today, now))
 
         preprocess = self._preproc_f is not None
+        modify_features = self._feature_modifier is not None
         generate_features = self._feat_gen_f is not None
         predict = self._estimator is not None and self._features["devel"]
 
@@ -145,6 +146,9 @@ class Experiment(object):
 
             if not preprocess and not generate_features:
                 self._load(set_name, "features")
+
+            if modify_features:
+                self._modify_features(set_name)
 
         if predict:
             self._decode(set_name)
@@ -200,6 +204,20 @@ class Experiment(object):
         self.times.setdefault("loading", {}).update(
             {set_name: time.time() - start})
 
+    def _modify_features(self, set_name):
+        # TODELAY: impove feature vector modifier
+        self._features[set_name], self._feature_names = (
+            self._feature_modifier(self._data_sets[set_name],
+                                   self._features[set_name],
+                                   self._feature_names))
+        assert len(self._features[set_name]) > 0, (
+            "removed all feature vectors")
+        assert (self._features[set_name][0].shape[-1] ==
+                len(self._feature_names)), (
+            "number of features {} and feature names {} does not match"
+                .format(self._features[set_name][0].shape[-1],
+                        len(self._feature_names)))
+
     def _generate_features(self, set_name):
         """
         Apply given feature generation procedure to all examples in data set
@@ -245,19 +263,6 @@ class Experiment(object):
         set_name: str
             either "devel" or "eval"
         """
-        # TODELAY: impove feature vector modifier
-        if self._feature_modifier is not None:
-            self._features[set_name], self._feature_names = (
-                self._feature_modifier(self._data_sets[set_name],
-                                       self._features[set_name],
-                                       self._feature_names))
-            assert len(self._features[set_name]) > 0, (
-                "removed all feature vectors")
-            assert (self._features[set_name][0].shape[-1] ==
-                    len(self._feature_names)), (
-                "number of features {} and feature names {} does not match"
-                .format(self._features[set_name][0].shape[-1],
-                        len(self._feature_names)))
         if set_name == "devel":
             self._validate()
         else:
