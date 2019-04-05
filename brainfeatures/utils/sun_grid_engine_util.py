@@ -29,6 +29,7 @@ def custom_parse(variables, arg):
 
 def parse_run_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--C", required=True, type=int)
     parser.add_argument('--bootstrap', dest='bootstrap', action='store_true')
     parser.add_argument('--no-bootstrap', dest='bootstrap', action='store_false')
     parser.add_argument("--criterion", required=True, type=str)
