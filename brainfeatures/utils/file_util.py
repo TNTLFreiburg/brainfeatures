@@ -127,7 +127,8 @@ def save_exp(exp, save_raw=False, out_dir=None):
             if subset in exp.info.keys() and "feature_importances" in \
                     exp.info[subset].keys():
                 feature_importances = exp.info[subset]["feature_importances"]
-                config.update({"feature_importances": feature_importances})
+                config.update({'_'.join([subset, "feature_importances"]):
+                               feature_importances})
                 if out_dir is not None:
                     feature_importances.to_csv(
                         out_dir + "feature_importances{}.csv".format(subset, i))
