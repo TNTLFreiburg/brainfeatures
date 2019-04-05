@@ -1,13 +1,17 @@
+from itertools import product
+import pandas as pd
+import numpy as np
+import logging
+import pickle
 import json
 import os
 import re
 
 from mne.io import read_raw_edf
-import pandas as pd
-import numpy as np
 
 
 def replace_extension(path, new_extension):
+    """ replace an extension """
     assert new_extension.startswith(".")
     old_exension = os.path.splitext(path)[1]
     path = path.replace(old_exension, new_extension)
@@ -104,119 +108,126 @@ def natural_key(string):
 
 
 def save_exp(exp, save_raw=False, out_dir=None):
+    """ save all relevant information contained in an experiment """
+    if save_raw:
+        with open(out_dir + "exp.pkl", "wb") as pickle_file:
+            pickle.dump(exp, pickle_file)
     for i in range(exp._n_runs):
         for subset in ["train", "valid"]:
             preds = exp.predictions[subset]
             performances = exp.performances[subset]
+            feature_importances = exp.info[subset]["feature_importances"]
             if out_dir is not None:
                 preds.to_csv(out_dir + "predictions_{}.csv".format(subset, i))
                 performances.to_csv(
                     out_dir + "performances_{}.csv".format(subset, i))
-        config = {}
-        config.update({"shuffle": exp._shuffle_splits})
-        config.update({"n_runs": exp._n_runs})
-        config.update({"n_jobs": exp._n_jobs})
-        if exp._preproc_params is not None:
-            config.update(exp._preproc_params)
-        if exp._feat_gen_params is not None:
-            config.update(exp._feat_gen_params)
-        if exp._pca_thresh is not None:
-            config.update({"pca_thresh": exp._pca_thresh})
+                feature_importances.to_csv(out_dir + "feature_importances{}.csv"
+                                           .format(subset, i))
+    config = {}
+    config.update({"shuffle": exp._shuffle_splits})
+    config.update({"n_runs": exp._n_runs})
+    config.update({"n_jobs": exp._n_jobs})
+    if exp._preproc_params is not None:
+        config.update(exp._preproc_params)
+    if exp._feat_gen_params is not None:
+        config.update(exp._feat_gen_params)
+    if exp._pca_thresh is not None:
+        config.update({"pca_thresh": exp._pca_thresh})
 
-        for key, value in exp.times.items():
-            if type(value) is dict:
-                for key2, value2 in value.items():
-                    config.update({'_'.join(["time", key, key2]): value2})
-            else:
-                config.update({'_'.join(["time", key]): value})
+    for key, value in exp.times.items():
+        if type(value) is dict:
+            for key2, value2 in value.items():
+                config.update({'_'.join(["time", key, key2]): value2})
+        else:
+            config.update({'_'.join(["time", key]): value})
 
-        config.update({"n_features": len(exp._feature_names)})
+    config.update({"n_features": len(exp._feature_names)})
 
-        d = {}
-        params = exp._estimator.__dict__[
-            "estimator_params"] if "estimator_params" in exp._estimator.__dict__ else []
-        for param in params:
-            d.update(
-                {'_'.join(["model", param]): exp._estimator.__dict__[param]})
-        config.update(d)
-        if "n_estimators" in exp._estimator.__dict__:
-            config.update(
-                {"n_estimators": exp._estimator.__dict__["n_estimators"]})
-
-        config.update({"sfreq": exp.info["devel"]["sfreq"]})
+    d = {}
+    if "estimator_params" in exp._estimator.__dict__:
+        params = exp._estimator.__dict__["estimator_params"]
+    else:
+        params = []
+    for param in params:
+        d.update(
+            {'_'.join(["model", param]): exp._estimator.__dict__[param]})
+    config.update(d)
+    if "n_estimators" in exp._estimator.__dict__:
         config.update(
-            {"model": str(exp._estimator.__class__).split('.')[-1][:-2]})
+            {"n_estimators": exp._estimator.__dict__["n_estimators"]})
 
-        for param in ["C", "gamma", "kernel"]:
-            if param in exp._estimator.__dict__:
-                if param == "gamma":
-                    param = '_' + param
-                config.update({'_'.join(["model", param]):
-                                   exp._estimator.__dict__[param]})
+    config.update({"sfreq": exp.info["devel"]["sfreq"]})
+    config.update(
+        {"model": str(exp._estimator.__class__).split('.')[-1][:-2]})
 
-        if out_dir is not None:
-            with open(out_dir + "config.json", "w") as json_file:
-                json.dump(config, json_file, indent=4, sort_keys=True)
+    for param in ["C", "gamma", "kernel"]:
+        if param in exp._estimator.__dict__:
+            if param == "gamma":
+                param = '_' + param
+            config.update({'_'.join(["model", param]):
+                               exp._estimator.__dict__[param]})
+
+    if out_dir is not None:
+        with open(out_dir + "config.json", "w") as json_file:
+            json.dump(config, json_file, indent=4, sort_keys=True)
     return config
 
 
 def read_feature_results(directory, models, decoding_tasks, decoding_types):
+    """ read features results from directory structure"""
     from sklearn.metrics import (roc_auc_score, accuracy_score, roc_curve,
                                  mean_squared_error)
+    subsets = ["cv", "eval"]
     result_df = pd.DataFrame()
-    for model in models:
-        for decoding_type in decoding_types:
-            for task in decoding_tasks:
-                for subset in ["cv", "eval"]:
-                    path = os.path.join(directory, model, decoding_type, task,
-                                        subset)
-                    if not os.path.exists(path):
-                        print("path does not exist: {}".format(path))
-                        continue
+    for model, decoding_type, task, subset in product(models, decoding_types,
+                                                      decoding_tasks, subsets):
+        path = os.path.join(directory, model, decoding_type, task, subset)
+        if not os.path.exists(path):
+            logging.error("path does not exist: {}".format(path))
+            continue
 
-                    if subset == "eval":
-                        train_or_eval = "eval"
-                    else:
-                        train_or_eval = "train"
-                    df = pd.DataFrame.from_csv(os.path.join(
-                        path, "predictions_{}.csv".format(train_or_eval)))
+        if subset == "eval":
+            train_or_eval = "eval"
+        else:
+            train_or_eval = "train"
+        df = pd.DataFrame.from_csv(os.path.join(
+            path, "predictions_{}.csv".format(train_or_eval)))
 
-                    # compute some metrics
-                    roc_curves, aucs, accs, rmses = [], [], [], []
-                    for group, d in df.groupby("id"):
-                        if task in ["pathological", "gender"]:
-                            auc = roc_auc_score(d.y_true, d.y_pred)
-                            aucs.append(auc)
+        # compute some metrics
+        roc_curves, aucs, accs, rmses = [], [], [], []
+        for group, d in df.groupby("id"):
+            if task in ["pathological", "gender"]:
+                auc = roc_auc_score(d.y_true, d.y_pred)
+                aucs.append(auc)
 
-                            roc = roc_curve(d.y_true, d.y_pred)
-                            roc_curves.append(roc)
+                roc = roc_curve(d.y_true, d.y_pred)
+                roc_curves.append(roc)
 
-                            acc = accuracy_score(d.y_true, d.y_pred >= .5)
-                            accs.append(acc)
-                        else:
-                            rmse = np.sqrt(mean_squared_error(d.y_true,
-                                                              d.y_pred))
-                            rmses.append(rmse)
+                acc = accuracy_score(d.y_true, d.y_pred >= .5)
+                accs.append(acc)
+            else:
+                rmse = np.sqrt(mean_squared_error(d.y_true, d.y_pred))
+                rmses.append(rmse)
 
-                    n = len(df.groupby("id"))
-                    if task in ["pathological", "gender"]:
-                        accs = np.mean(accs) * 100
-                        aucs = np.mean(aucs) * 100
-                        rmses = None
-                    else:
-                        accs = None
-                        aucs = None
-                        rmses = np.mean(rmses)
-                    row = {
-                        "model": model,
-                        "task": task,
-                        "accuracy": accs,
-                        "auc": aucs,
-                        "subset": subset,
-                        "rmse": rmses,
-                        "n": n,
-                        "type": decoding_type,
-                    }
-                    result_df = result_df.append(row, ignore_index=True)
+        n = len(df.groupby("id"))
+        if task in ["pathological", "gender"]:
+            accs = np.mean(accs) * 100
+            aucs = np.mean(aucs) * 100
+            rmses = None
+        else:
+            accs = None
+            aucs = None
+            rmses = np.mean(rmses)
+        row = {
+            "model": model,
+            "task": task,
+            "accuracy": accs,
+            "auc": aucs,
+            "subset": subset,
+            "rmse": rmses,
+            "n": n,
+            "type": decoding_type,
+        }
+        result_df = result_df.append(row, ignore_index=True)
 
     return result_df
