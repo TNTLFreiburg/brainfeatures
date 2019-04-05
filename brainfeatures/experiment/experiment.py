@@ -304,11 +304,7 @@ class Experiment(object):
         set_name: str
             either "devel" or "eval"
         """
-        set_names = []
-        if set_name == "devel":
-            set_names.extend(["train"])
-        set_names.extend([set_name])
-
+        set_names = ["train", set_name]
         for set_name in set_names:
             if set_name == "devel":
                 set_name = "valid"
