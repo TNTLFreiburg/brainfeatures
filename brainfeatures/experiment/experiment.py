@@ -132,7 +132,11 @@ class Experiment(object):
 
         preprocess = self._preproc_f is not None
         generate_features = self._feat_gen_f is not None
-        predict = self._estimator is not None and self._features["devel"]
+        predict = {
+            "devel": (self._estimator is not None and self._features["devel"]
+                      and not self._features["eval"]),
+            "eval": (self._estimator is not None and self._features["devel"]
+                     and self._features["eval"])}
 
         for set_name in self._data_sets.keys():
             if preprocess:
@@ -146,11 +150,7 @@ class Experiment(object):
             if not preprocess and not generate_features:
                 self._load(set_name, "features")
 
-            # don't do cross-validation before final evaluation
-            if "eval" in self._data_sets.keys():
-                continue
-
-            if predict:
+            if predict[set_name]:
                 self._decode(set_name)
 
         today, now = date.today(), datetime.time(datetime.now())
