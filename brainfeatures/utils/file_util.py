@@ -127,7 +127,7 @@ def save_exp(exp, save_raw=False, out_dir=None):
                 feature_importances = exp.info[subset]["feature_importances"]
                 if out_dir is not None:
                     feature_importances.to_csv(
-                        out_dir + "feature_importances{}.csv".format(subset, i))
+                        out_dir + "feature_importances_{}.csv".format(subset, i))
 
     config.update({"shuffle": exp._shuffle_splits})
     config.update({"n_runs": exp._n_runs})
