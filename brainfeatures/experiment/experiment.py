@@ -134,7 +134,7 @@ class Experiment(object):
         generate_features = self._feat_gen_f is not None
         predict = {
             "devel": (self._estimator is not None and self._features["devel"]
-                      and not self._features["eval"]),
+                      and not self._data_sets["eval"]),
             "eval": (self._estimator is not None and self._features["devel"]
                      and self._features["eval"])}
 
