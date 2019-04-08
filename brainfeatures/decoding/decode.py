@@ -254,12 +254,13 @@ def decode(X_train, y_train, estimator, n_runs, shuffle_splits, X_test=None,
                 for i, (train_ind, test_ind) in enumerate(splits):
                     if i == run_i:
                         break
+
+                X, y, X_test, y_test, train_groups, test_groups = \
+                    get_train_test(X_train, y_train, train_ind, test_ind,
+                                   groups)
             else:
                 estimator.random_state = int(time.time() * 1000)
             logging.debug("set random state to {}".format(run_i))
-
-            X, y, X_test, y_test, train_groups, test_groups = \
-                get_train_test(X_train, y_train, train_ind, test_ind, groups)
 
         preds_train, preds, dict_of_dfs = decode_once(
             X, X_test, y, y_test, estimator, scaler, pca_thresh, do_importances)
