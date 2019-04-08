@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import logging
-import time
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
@@ -246,21 +245,18 @@ def decode(X_train, y_train, estimator, n_runs, shuffle_splits, X_test=None,
     for run_i in range(n_runs):
         logging.debug("this is run {}".format(run_i))
         if hasattr(estimator, "random_state"):
-            if cv_or_eval == "valid":
-                estimator.random_state = run_i
-
-                # generator cannot be indexed
-                splits = kf.split(np.unique(groups))
-                for i, (train_ind, test_ind) in enumerate(splits):
-                    if i == run_i:
-                        break
-
-                X, y, X_test, y_test, train_groups, test_groups = \
-                    get_train_test(X_train, y_train, train_ind, test_ind,
-                                   groups)
-            else:
-                estimator.random_state = int(time.time() * 1000)
+            estimator.random_state = run_i
             logging.debug("set random state to {}".format(run_i))
+
+        if cv_or_eval == "valid":
+            # generator cannot be indexed
+            splits = kf.split(np.unique(groups))
+            for i, (train_ind, test_ind) in enumerate(splits):
+                if i == run_i:
+                    break
+
+            X, y, X_test, y_test, train_groups, test_groups = \
+                get_train_test(X_train, y_train, train_ind, test_ind, groups)
 
         preds_train, preds, dict_of_dfs = decode_once(
             X, X_test, y, y_test, estimator, scaler, pca_thresh, do_importances)
