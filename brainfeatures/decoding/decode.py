@@ -141,7 +141,7 @@ def decode_once(X_train, X_test, y_train, y_test, estimator,
         y_hat_train = estimator.predict(X_train)
 
     if hasattr(estimator, "random_state"):
-        dict_of_dfs.update({"random_states": estimator.random_state})
+        dict_of_dfs.update({"random_states": [estimator.random_state]})
     return y_hat_train, y_hat, dict_of_dfs
 
 
