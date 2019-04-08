@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+import time
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
@@ -139,6 +140,9 @@ def decode_once(X_train, X_test, y_train, y_test, estimator,
         # create labels
         y_hat = estimator.predict(X_test)
         y_hat_train = estimator.predict(X_train)
+
+    if hasattr(estimator, "random_state"):
+        dict_of_dfs.update({"random_states": estimator.random_state})
     return y_hat_train, y_hat, dict_of_dfs
 
 
@@ -236,14 +240,17 @@ def decode(X_train, y_train, estimator, n_runs, shuffle_splits, X_test=None,
                  "train": pd.DataFrame()}
     set_info = {"feature_importances": pd.DataFrame(),
                 "rfpimp_importances": pd.DataFrame(),
-                "pca_components": pd.DataFrame()}
+                "pca_components": pd.DataFrame(),
+                "random_states": pd.DataFrame()}
 
     for run_i in range(n_runs):
         logging.debug("this is run {}".format(run_i))
-        if cv_or_eval == "valid":
-            if hasattr(estimator, "random_state"):
+        if hasattr(estimator, "random_state"):
+            if cv_or_eval == "valid":
                 estimator.random_state = run_i
-                logging.debug("set random state to {}".format(run_i))
+            else:
+                estimator.random_state = int(time.time() * 1000)
+            logging.debug("set random state to {}".format(run_i))
 
             # generator cannot be indexed
             splits = kf.split(np.unique(groups))
