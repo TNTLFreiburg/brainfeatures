@@ -248,15 +248,15 @@ def decode(X_train, y_train, estimator, n_runs, shuffle_splits, X_test=None,
         if hasattr(estimator, "random_state"):
             if cv_or_eval == "valid":
                 estimator.random_state = run_i
+
+                # generator cannot be indexed
+                splits = kf.split(np.unique(groups))
+                for i, (train_ind, test_ind) in enumerate(splits):
+                    if i == run_i:
+                        break
             else:
                 estimator.random_state = int(time.time() * 1000)
             logging.debug("set random state to {}".format(run_i))
-
-            # generator cannot be indexed
-            splits = kf.split(np.unique(groups))
-            for i, (train_ind, test_ind) in enumerate(splits):
-                if i == run_i:
-                    break
 
             X, y, X_test, y_test, train_groups, test_groups = \
                 get_train_test(X_train, y_train, train_ind, test_ind, groups)
