@@ -92,7 +92,8 @@ def plot_feature_correlations(data, title='', xticks=None, xticklabels=None,
 
 
 def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
-                                          out_dir=None, n_most_important=5):
+                                          out_dir=None, n_most_important=5,
+                                          fontsize=10):
     """ plot the feature importances on a scheme of the head to add spatial
     relationship.
     :param importances: the feature importances as returned by the RF. shape
@@ -103,7 +104,7 @@ def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
     """
     plt.figure(figsize=(15, 10))
     plt.rcParams['axes.facecolor'] = 'white'
-    fontsize=10
+    # fontsize=10
 
     elecs = []
     for feature_label in feature_labels:
@@ -144,19 +145,19 @@ def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
     c1 = plt.Circle((50+offset_x, 50+offset_y), 50, fill=False, color='black',
                     alpha=.5)
     ax.add_artist(c1)
-    c2 = plt.Circle((50+offset_x, 50+offset_y), 40, fill=False, color='black',
-                    alpha=.5)
-    ax.add_artist(c2)
+    #c2 = plt.Circle((50+offset_x, 50+offset_y), 40, fill=False, color='black',
+    #                alpha=.5)
+    #ax.add_artist(c2)
     # the nose
     plt.plot([47+offset_x, 50+offset_x, 53+offset_x],
              [100+offset_y, 103+offset_y, 100+offset_y],
              color='black', alpha=.5, linewidth=.1)
     # from ear to ear
-    plt.plot([0+offset_x, 100+offset_x], [50+offset_y, 50+offset_y],
-             color='black', alpha=.5, linewidth=.1)
+    #plt.plot([0+offset_x, 100+offset_x], [50+offset_y, 50+offset_y],
+    #         color='black', alpha=.5, linewidth=.1)
     # from nasion to inion
-    plt.plot([50+offset_x, 50+offset_x], [0+offset_y, 100+offset_y],
-             color='black', alpha=.5, linewidth=.1)
+    #plt.plot([50+offset_x, 50+offset_x], [0+offset_y, 100+offset_y],
+    #         color='black', alpha=.5, linewidth=.1)
 
     # if n_most_important == 3:
     #     colors = ['red', 'orangered', 'orange']
@@ -221,9 +222,9 @@ def plot_mean_feature_importances_spatial(mean_importances, feature_labels,
     plt.tight_layout()
 
     plt.show()
-    # plt.savefig(os.path.join(out_dir, '_'.join(title) + '.pdf'))
     if out_dir is not None:
         plt.savefig(os.path.join(out_dir, '_'.join(title) + '.png'), dpi=400)
+        plt.savefig(os.path.join(out_dir, '_'.join(title) + '.pdf'))
     plt.close('all')
 
 
